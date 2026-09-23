@@ -201,7 +201,7 @@ async function submitCart(){
 }
 
 const STATUS_LABEL = {
-  pending: '待到貨', confirmed: '已確認金額', purchased: '已採購', arrived: '已到貨',
+  pending_arrival: '待到貨', pending: '待到貨', confirmed: '已確認金額', purchased: '已採購', arrived: '已到貨',
   settled: '已結清', cancel_requested: '申請取消中', modify_requested: '申請修改中', cancelled: '已取消'
 };
 
@@ -219,7 +219,7 @@ async function loadOrders(){
         </div>
         <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
         <div class="muted">預估金額：NT$${o.estimatedAmount || 0}${o.finalAmount ? '　確認金額：NT$' + o.finalAmount : ''}</div>
-        ${o.status === 'pending' ? `<div style="margin-top:8px;"><button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button></div>` : ''}
+        ${(o.status === 'pending' || o.status === 'pending_arrival') ? `<div style="margin-top:8px;"><button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button></div>` : ''}
         ${o.status === 'confirmed' ? `<div style="margin-top:8px;"><button class="primary" onclick="doConfirm('${o.orderId}')">確認金額無誤</button></div>` : ''}
       </div>`).join('');
   } catch(e) {
