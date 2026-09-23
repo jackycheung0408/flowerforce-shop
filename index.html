@@ -40,34 +40,18 @@
   .badge-ok{background:var(--ok-tint);color:var(--ok);padding:2px 8px;border-radius:6px;font-size:12px;}
   .badge-wait{background:var(--wait-tint);color:var(--wait);padding:2px 8px;border-radius:6px;font-size:12px;}
   #loginScreen{max-width:360px;margin:60px auto;}
-  #adminLoginScreen{max-width:360px;margin:60px auto;display:none;}
   .topbar{display:flex;justify-content:space-between;align-items:center;}
-  .link-btn{background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div id="loginScreen" class="card">
-    <h1 style="text-align:center;margin-bottom:16px;">荷蘭花選．花商登入</h1>
-    <div style="margin-bottom:10px;"><input id="loginShopId" placeholder="花商編號 (shopId)"></div>
-    <div style="margin-bottom:14px;"><input id="loginPhone" placeholder="登記手機號碼"></div>
+    <h1 style="text-align:center;margin-bottom:16px;">荷蘭花選．登入</h1>
+    <div style="margin-bottom:10px;"><input id="loginId" placeholder="花商編號 / 管理者帳號"></div>
+    <div style="margin-bottom:14px;"><input id="loginSecret" type="password" placeholder="登記手機號碼 / 管理者密碼"></div>
     <button class="primary" style="width:100%;" onclick="doLogin()">登入</button>
     <div id="loginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
-    <div style="margin-top:16px;text-align:center;">
-      <button class="link-btn" onclick="showAdminLogin()">管理者登入</button>
-    </div>
-  </div>
-
-  <div id="adminLoginScreen" class="card">
-    <h1 style="text-align:center;margin-bottom:16px;">管理者登入</h1>
-    <div style="margin-bottom:10px;"><input id="adminUsernameInput" placeholder="管理者帳號"></div>
-    <div style="margin-bottom:14px;"><input id="adminPasswordInput" type="password" placeholder="管理者密碼"></div>
-    <button class="primary" style="width:100%;" onclick="doAdminLogin()">登入</button>
-    <div id="adminLoginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
-    <div style="margin-top:16px;text-align:center;">
-      <button class="link-btn" onclick="showShopLogin()">回花商登入</button>
-    </div>
   </div>
 
   <div id="mainScreen" style="display:none;">
@@ -161,42 +145,28 @@ function saveAdminSession(){
   try { sessionStorage.setItem('ff_admin', '1'); } catch(e){}
 }
 
-function showAdminLogin(){
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('adminLoginScreen').style.display = '';
-}
-function showShopLogin(){
-  document.getElementById('adminLoginScreen').style.display = 'none';
-  document.getElementById('loginScreen').style.display = '';
-}
-
 async function doLogin(){
-  const shopId = document.getElementById('loginShopId').value.trim();
-  const phone = document.getElementById('loginPhone').value.trim();
+  const id = document.getElementById('loginId').value.trim();
+  const secret = document.getElementById('loginSecret').value.trim();
   const msg = document.getElementById('loginMsg');
   msg.textContent = '登入中...';
   try {
-    const res = await api('loginShop', [shopId, phone]);
+    const isAdmin = await api('adminLogin', [id, secret]);
+    if (isAdmin) {
+      IS_ADMIN = true;
+      saveAdminSession();
+      enterAdminApp();
+      return;
+    }
+  } catch(e) {
+    // fall through to shop login
+  }
+  try {
+    const res = await api('loginShop', [id, secret]);
     if (!res.ok) { msg.textContent = res.message; return; }
     SHOP = res.shop;
     saveSession();
     enterApp();
-  } catch(e) {
-    msg.textContent = '登入失敗：' + e.message;
-  }
-}
-
-async function doAdminLogin(){
-  const username = document.getElementById('adminUsernameInput').value.trim();
-  const password = document.getElementById('adminPasswordInput').value.trim();
-  const msg = document.getElementById('adminLoginMsg');
-  msg.textContent = '登入中...';
-  try {
-    const ok = await api('adminLogin', [username, password]);
-    if (!ok) { msg.textContent = '帳號或密碼錯誤'; return; }
-    IS_ADMIN = true;
-    saveAdminSession();
-    enterAdminApp();
   } catch(e) {
     msg.textContent = '登入失敗：' + e.message;
   }
@@ -207,14 +177,12 @@ function logout(){
   IS_ADMIN = false;
   try { sessionStorage.removeItem('ff_shop'); sessionStorage.removeItem('ff_admin'); } catch(e){}
   document.getElementById('loginScreen').style.display = '';
-  document.getElementById('adminLoginScreen').style.display = 'none';
   document.getElementById('mainScreen').style.display = 'none';
   document.getElementById('adminScreen').style.display = 'none';
 }
 
 function enterApp(){
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('adminLoginScreen').style.display = 'none';
   document.getElementById('mainScreen').style.display = '';
   document.getElementById('shopNameLabel').textContent = SHOP.shopName || '';
   document.getElementById('ownerLabel').textContent = SHOP.owner || '';
@@ -223,7 +191,6 @@ function enterApp(){
 
 function enterAdminApp(){
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('adminLoginScreen').style.display = 'none';
   document.getElementById('adminScreen').style.display = '';
   loadAdminOrders();
 }
