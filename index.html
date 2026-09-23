@@ -135,8 +135,18 @@
 
     <div class="hero">
       <div class="eyebrow">HOLLAND FLOWER SELECT</div>
-      <div class="title" style="font-family:var(--font-serif);font-size:22px;font-weight:700;letter-spacing:1px;">時令荷蘭鮮花　直送台灣花商</div>
-      <div class="sub">艸．嚴選荷蘭空運花材，當日檢疫、當日出貨</div>
+      <div class="title" style="font-family:var(--font-serif);font-size:22px;font-weight:700;letter-spacing:1px;">時令荷蘭鮮花　整合代購直送</div>
+      <div class="sub">艸．每週統一向荷蘭下單，代辦空運與檢疫通關</div>
+    </div>
+
+    <div class="card" id="batchInfoCard" style="margin-top:14px;padding:14px 16px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-family:var(--font-serif);color:var(--leaf-dark);">本批次訂購截止</div>
+          <div class="muted" id="batchCutoffLabel">載入中...</div>
+        </div>
+        <div class="badge-wait" id="batchIdLabel"></div>
+      </div>
     </div>
 
     <div class="line-cs">
@@ -183,6 +193,7 @@
 
     <div style="display:flex;gap:4px;margin-top:18px;">
       <div class="tab active" id="tabAdminOrdersBtn" onclick="switchAdminTab('orders')">訂單管理</div>
+      <div class="tab inactive" id="tabAdminBatchBtn" onclick="switchAdminTab('batch')">批次總覽</div>
       <div class="tab inactive" id="tabAdminShopsBtn" onclick="switchAdminTab('shops')">花商管理</div>
       <div class="tab inactive" id="tabAdminStockBtn" onclick="switchAdminTab('stock')">庫存管理</div>
     </div>
@@ -190,6 +201,11 @@
     <div id="adminOrdersPane" class="card" style="border-top-left-radius:0;margin-top:0;">
       <h2>所有訂單</h2>
       <div id="adminOrdersList" class="muted">載入中...</div>
+    </div>
+
+    <div id="adminBatchPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
+      <h2>批次採購彙總</h2>
+      <div id="adminBatchList" class="muted">載入中...</div>
     </div>
 
     <div id="adminShopsPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
@@ -225,6 +241,7 @@ let SHOP = null;
 let IS_ADMIN = false;
 let PRODUCTS = [];
 let CART = {};
+let CURRENT_BATCH = null;
 
 function loadSession(){
   try {
@@ -282,6 +299,18 @@ function enterApp(){
   document.getElementById('shopNameLabel').textContent = SHOP.shopName || '';
   document.getElementById('ownerLabel').textContent = SHOP.owner || '';
   loadCatalog();
+  loadBatchInfo();
+}
+
+async function loadBatchInfo(){
+  try {
+    const b = await api('getCurrentBatchInfo', []);
+    CURRENT_BATCH = b;
+    const card = document.getElementById('batchInfoCard');
+    card.style.display = '';
+    document.getElementById('batchCutoffLabel').textContent = b.cutoffAt ? new Date(b.cutoffAt).toLocaleString('zh-TW') + ' 前完成付款' : '';
+    document.getElementById('batchIdLabel').textContent = b.batchId;
+  } catch(e) { /* ignore */ }
 }
 
 function enterAdminApp(){
@@ -300,13 +329,14 @@ function switchTab(name){
 }
 
 function switchAdminTab(name){
-  const panes = {orders:'adminOrdersPane', shops:'adminShopsPane', stock:'adminStockPane'};
-  const btns = {orders:'tabAdminOrdersBtn', shops:'tabAdminShopsBtn', stock:'tabAdminStockBtn'};
+  const panes = {orders:'adminOrdersPane', batch:'adminBatchPane', shops:'adminShopsPane', stock:'adminStockPane'};
+  const btns = {orders:'tabAdminOrdersBtn', batch:'tabAdminBatchBtn', shops:'tabAdminShopsBtn', stock:'tabAdminStockBtn'};
   Object.keys(panes).forEach(k => {
     document.getElementById(panes[k]).style.display = (k === name) ? '' : 'none';
     document.getElementById(btns[k]).className = 'tab ' + (k === name ? 'active' : 'inactive');
   });
   if (name === 'orders') loadAdminOrders();
+  if (name === 'batch') loadAdminBatch();
   if (name === 'shops') loadAdminShops();
   if (name === 'stock') loadAdminStock();
 }
@@ -390,10 +420,9 @@ async function submitCart(){
   }
 }
 
-const STATUS_LABEL = {
-  pending_confirm: '待確認金額', pending_arrival: '待到貨', pending: '待到貨', await_payment: '待付款',
-  confirmed: '已確認金額', purchased: '已採購', arrived: '已到貨',
-  settled: '已結清', cancel_requested: '申請取消中', modify_requested: '申請修改中', cancelled: '已取消'
+const FULFILL_LABEL = {
+  '待採購': '待採購', '已跟荷蘭下單': '已跟荷蘭下單', '運送檢疫中': '運送檢疫中',
+  '到貨可配送': '到貨可配送', '已完成': '已完成', '已取消': '已取消'
 };
 
 const ORDER_ITEMS_CACHE = {};
@@ -404,24 +433,48 @@ async function loadOrders(){
   try {
     const orders = await api('getShopOrders', [SHOP.shopId]);
     if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
-    el.innerHTML = orders.map(o => `
+    el.innerHTML = orders.map(o => {
+      const paid = o.paymentStatus === '已收款';
+      const cancelled = o.fulfillStatus === '已取消';
+      return `
       <div class="row" style="display:block;">
-        <div style="display:flex;justify-content:space-between;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="font-weight:700;">${o.orderId}</div>
-          <div class="badge-wait">${STATUS_LABEL[o.status] || o.status}</div>
+          <div style="display:flex;gap:6px;">
+            <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
+            <div class="badge-wait">${FULFILL_LABEL[o.fulfillStatus] || o.fulfillStatus || '待採購'}</div>
+          </div>
         </div>
         <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
-        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}${o.finalAmount ? '　確認金額：NT$' + o.finalAmount : ''}</div>
+        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}</div>
+        ${!paid && !cancelled ? `
+        <div style="margin-top:8px;padding:10px;background:var(--wait-tint);border-radius:4px;">
+          ${o.transferLast5 ? `<div class="muted">已回報帳號末五碼：<b>${o.transferLast5}</b>，待管理員確認款項</div>` : `
+          <div style="display:flex;gap:6px;">
+            <input id="last5-${o.orderId}" placeholder="轉帳帳號末五碼" maxlength="5" style="flex:1;">
+            <button class="tiny" onclick="doReportPayment('${o.orderId}')">回報付款</button>
+          </div>`}
+        </div>` : ''}
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
-          ${(o.status === 'pending' || o.status === 'pending_arrival' || o.status === 'pending_confirm') ? `<button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button>` : ''}
-          ${o.status === 'confirmed' ? `<button class="primary" onclick="doConfirm('${o.orderId}')">確認金額無誤</button>` : ''}
+          ${!cancelled ? `<button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button>` : ''}
         </div>
         <div id="items-${o.orderId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
     el.textContent = '載入失敗：' + e.message;
   }
+}
+
+async function doReportPayment(orderId){
+  const val = document.getElementById('last5-' + orderId).value.trim();
+  if (!val) { alert('請輸入轉帳帳號末五碼'); return; }
+  try {
+    await api('reportPayment', [SHOP.shopId, orderId, val]);
+    alert('已回報付款，待管理員確認');
+    loadOrders();
+  } catch(e) { alert('操作失敗：' + e.message); }
 }
 
 async function toggleOrderItems(orderId){
@@ -459,15 +512,9 @@ async function doCancel(orderId){
   } catch(e) { alert('操作失敗：' + e.message); }
 }
 
-async function doConfirm(orderId){
-  try {
-    await api('confirmOrderAmount', [orderId]);
-    alert('已確認，請依約定方式結清貨款。');
-    loadOrders();
-  } catch(e) { alert('操作失敗：' + e.message); }
-}
-
 // ==== 管理後台 ====
+
+const ADMIN_FULFILL_FLOW = ['待採購', '已跟荷蘭下單', '運送檢疫中', '到貨可配送', '已完成'];
 
 async function loadAdminOrders(){
   const el = document.getElementById('adminOrdersList');
@@ -476,32 +523,31 @@ async function loadAdminOrders(){
     const orders = await api('getAllOrders', []);
     if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
     el.innerHTML = orders.map(o => {
+      const paid = o.paymentStatus === '已收款';
+      const cancelled = o.fulfillStatus === '已取消';
       let actions = '';
-      if (o.status === 'pending' || o.status === 'pending_arrival') {
-        actions += `<button class="tiny" onclick="adminConfirm('${o.orderId}')">確認金額</button> `;
-        actions += `<button class="tiny" onclick="adminMarkPurchased('${o.orderId}')">標記已採購</button>`;
+      if (!paid && o.transferLast5 && !cancelled) {
+        actions += `<button class="tiny" onclick="adminConfirmPay('${o.orderId}')">確認款項（末五碼 ${o.transferLast5}）</button> `;
       }
-      if (o.status === 'purchased') {
-        actions += `<button class="tiny" onclick="adminMarkArrived('${o.orderId}')">標記已到貨</button>`;
+      if (paid && !cancelled) {
+        const idx = ADMIN_FULFILL_FLOW.indexOf(o.fulfillStatus);
+        const next = idx >= 0 && idx < ADMIN_FULFILL_FLOW.length - 1 ? ADMIN_FULFILL_FLOW[idx + 1] : null;
+        if (next) actions += `<button class="tiny" onclick="adminNextStatus('${o.orderId}','${next}')">推進至「${next}」</button>`;
       }
-      if (o.status === 'arrived' || o.status === 'confirmed') {
-        actions += `<button class="tiny" onclick="adminRecordArrival('${o.orderId}')">登記到貨與帳款</button>`;
-      }
-      if (o.status === 'settled' || o.finalAmount) {
-        actions += `<button class="tiny" onclick="adminMarkSettled('${o.orderId}')">標記已結清</button>`;
-      }
-      if (o.status === 'cancel_requested') {
-        actions += `<button class="tiny" onclick="adminReviewCancel('${o.orderId}',true)">核准取消</button> `;
-        actions += `<button class="tiny" onclick="adminReviewCancel('${o.orderId}',false)">駁回取消</button>`;
+      if (o.note) {
+        actions += ` <span class="muted">備註：${o.note}</span>`;
       }
       return `
       <div class="row" style="display:block;">
-        <div style="display:flex;justify-content:space-between;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="font-weight:700;">${o.orderId}　<span class="muted">${o.shopId || ''}</span></div>
-          <div class="badge-wait">${STATUS_LABEL[o.status] || o.status}</div>
+          <div style="display:flex;gap:6px;">
+            <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
+            <div class="badge-wait">${o.fulfillStatus || '待採購'}</div>
+          </div>
         </div>
-        <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
-        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}${o.finalAmount ? '　確認金額：NT$' + o.finalAmount : ''}</div>
+        <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}　批次：${o.batchId || ''}</div>
+        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}</div>
         <div style="margin-top:8px;">
           <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
           ${actions}
@@ -514,40 +560,37 @@ async function loadAdminOrders(){
   }
 }
 
-async function adminConfirm(orderId){
-  const amt = prompt('請輸入確認金額 (NT$)：');
-  if (amt === null || amt.trim() === '') return;
+async function adminConfirmPay(orderId){
+  if (!confirm('確認已收到此筆款項？系統將發送確認信給花商。')) return;
+  try { await api('adminConfirmPayment', [orderId]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function adminNextStatus(orderId, newStatus){
+  try { await api('adminSetFulfillStatus', [orderId, newStatus]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function loadAdminBatch(){
+  const el = document.getElementById('adminBatchList');
+  el.textContent = '載入中...';
   try {
-    await api('adminConfirmAmount', [orderId, Number(amt)]);
-    loadAdminOrders();
-  } catch(e) { alert('操作失敗：' + e.message); }
-}
-
-async function adminMarkPurchased(orderId){
-  try { await api('adminMarkPurchased', [orderId]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
-}
-
-async function adminMarkArrived(orderId){
-  try { await api('adminMarkArrived', [orderId]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
-}
-
-async function adminRecordArrival(orderId){
-  const amt = prompt('請輸入最終結算金額 (NT$)：');
-  if (amt === null || amt.trim() === '') return;
-  try { await api('recordArrivalAndBill', [orderId, Number(amt)]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
-}
-
-async function adminMarkSettled(orderId){
-  try { await api('markSettled', [orderId]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
-}
-
-async function adminReviewCancel(orderId, approve){
-  try { await api('adminReviewCancelRequest', [orderId, approve]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
+    const batch = await api('getCurrentBatchInfo', []);
+    const summary = await api('getBatchSummary', [batch.batchId]);
+    let html = `<div class="muted" style="margin-bottom:10px;">批次 ${batch.batchId}　已收款訂單 ${summary.orderCount} 筆　截止：${batch.cutoffAt ? new Date(batch.cutoffAt).toLocaleString('zh-TW') : ''}</div>`;
+    if (summary.skuTotals.length === 0) {
+      html += '<div class="muted">目前尚無已收款訂單，暫無需向荷蘭下單的品項</div>';
+    } else {
+      html += summary.skuTotals.map(s => `
+        <div class="row">
+          <div class="prod-name">${s.name}　<span class="muted">${s.sku}</span></div>
+          <div style="font-weight:700;color:var(--rose-dark);">共 ${s.totalQty} 單位</div>
+        </div>`).join('');
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.textContent = '載入失敗：' + e.message;
+  }
 }
 
 async function loadAdminShops(){
