@@ -61,7 +61,8 @@
 
   <div id="adminLoginScreen" class="card">
     <h1 style="text-align:center;margin-bottom:16px;">管理者登入</h1>
-    <div style="margin-bottom:14px;"><input id="adminPinInput" type="password" placeholder="管理者 PIN"></div>
+    <div style="margin-bottom:10px;"><input id="adminUsernameInput" placeholder="管理者帳號"></div>
+    <div style="margin-bottom:14px;"><input id="adminPasswordInput" type="password" placeholder="管理者密碼"></div>
     <button class="primary" style="width:100%;" onclick="doAdminLogin()">登入</button>
     <div id="adminLoginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
     <div style="margin-top:16px;text-align:center;">
@@ -186,12 +187,13 @@ async function doLogin(){
 }
 
 async function doAdminLogin(){
-  const pin = document.getElementById('adminPinInput').value.trim();
+  const username = document.getElementById('adminUsernameInput').value.trim();
+  const password = document.getElementById('adminPasswordInput').value.trim();
   const msg = document.getElementById('adminLoginMsg');
   msg.textContent = '登入中...';
   try {
-    const ok = await api('adminLogin', [pin]);
-    if (!ok) { msg.textContent = 'PIN 錯誤'; return; }
+    const ok = await api('adminLogin', [username, password]);
+    if (!ok) { msg.textContent = '帳號或密碼錯誤'; return; }
     IS_ADMIN = true;
     saveAdminSession();
     enterAdminApp();
