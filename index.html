@@ -3,111 +3,156 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>荷蘭花選 FlowerForce TW</title>
+<title>艸｜荷蘭花選 FlowerForce</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Playfair+Display:ital,wght@0,600;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Playfair+Display:ital,wght@0,600;1,500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ground:#FBF6EE; --surface:#FFFFFF; --ink:#2B2620; --ink-soft:#6B6354;
-    --line:#E8DFCC; --leaf:#2F5233; --leaf-dark:#1F3A24; --leaf-tint:#E6EDE2;
-    --rose:#C1573D; --rose-tint:#F6E4DC; --ok:#2F7A4F; --ok-tint:#E4F1E7;
-    --wait:#B98A2E; --wait-tint:#F7EED9;
+    --ground:#F7F2E9; --surface:#FFFDF8; --ink:#2E2A22; --ink-soft:#7A705F;
+    --line:#E5DCC6; --line-soft:#EFE7D4;
+    --leaf:#4B5D45; --leaf-dark:#33422F; --leaf-tint:#EAEEE2;
+    --rose:#B5695A; --rose-dark:#8F4E42; --rose-tint:#F3E4DD;
+    --gold:#B08A3E; --gold-tint:#F1E8D2;
+    --ok:#4B7A5A; --ok-tint:#E7F0E5;
+    --wait:#A67C33; --wait-tint:#F5EBD4;
     --font-serif:'Playfair Display','Noto Serif TC',serif;
+    --font-display:'Cormorant Garamond','Noto Serif TC',serif;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--ground);color:var(--ink);font-family:"PingFang TC","Microsoft JhengHei",sans-serif;}
-  .wrap{max-width:640px;margin:0 auto;padding:16px 16px 40px;}
+  body{margin:0;background:
+    radial-gradient(1200px 400px at 50% -80px, #FFFCF4 0%, transparent 60%),
+    var(--ground);
+    color:var(--ink);font-family:"PingFang TC","Microsoft JhengHei",sans-serif;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:16px 16px 48px;}
+  .brandmark{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 2px;}
+  .brandmark .glyph{
+    width:40px;height:40px;border-radius:50%;
+    border:1px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-serif);font-size:19px;color:var(--leaf-dark);
+    background:var(--surface);
+    box-shadow:0 0 0 4px var(--gold-tint);
+    flex-shrink:0;
+  }
+  .brandmark .brandtext{text-align:left;}
+  .brandmark .brandtext .zh{font-family:var(--font-serif);font-size:19px;font-weight:700;color:var(--leaf-dark);letter-spacing:2px;line-height:1.1;}
+  .brandmark .brandtext .en{font-family:var(--font-display);font-style:italic;font-size:12px;color:var(--gold);letter-spacing:1.5px;}
   h1{font-size:20px;margin:0;font-family:var(--font-serif);color:var(--leaf-dark);letter-spacing:.5px;}
-  h2{font-size:16px;margin:0 0 10px;font-family:var(--font-serif);color:var(--leaf-dark);padding-bottom:8px;border-bottom:2px dashed var(--line);position:relative;}
-  h2::after{content:'❀';position:absolute;left:0;bottom:-11px;background:var(--surface);padding:0 6px;color:var(--rose);font-size:12px;}
+  h2{font-size:15px;margin:0 0 14px;font-family:var(--font-serif);font-weight:700;color:var(--leaf-dark);letter-spacing:1px;text-align:center;position:relative;padding-bottom:12px;}
+  h2::after{content:'';position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:64px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+  h2::before{content:'❧';position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);background:var(--surface);padding:0 8px;color:var(--gold);font-size:13px;}
   .muted{color:var(--ink-soft);font-size:13px;}
-  .card{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px;}
-  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--rose),var(--wait),var(--leaf));}
-  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .card{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:20px 16px;margin-top:14px;box-shadow:0 2px 14px rgba(75,93,69,.06);}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--rose),var(--gold),var(--leaf));}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px dashed var(--line);}
   .row:last-child{border-bottom:none;}
   .prod-info{display:flex;align-items:center;gap:10px;min-width:0;}
-  .prod-thumb{width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;background:var(--leaf-tint);}
-  .prod-name{font-weight:700;font-family:var(--font-serif);font-size:14px;}
-  .qty-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:16px;cursor:pointer;}
-  button.primary{background:var(--leaf);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-weight:700;}
-  button.secondary{background:var(--rose-tint);color:var(--rose);border:none;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:700;}
-  button.tiny{background:var(--leaf-tint);color:var(--leaf-dark);border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:700;}
-  input{padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;width:100%;}
-  .tab{padding:10px 14px;border-radius:10px 10px 0 0;cursor:pointer;font-weight:700;font-size:14px;}
-  .tab.active{background:var(--surface);color:var(--leaf-dark);}
-  .tab.inactive{background:var(--leaf-tint);color:var(--ink-soft);}
-  .badge-low{color:var(--rose);font-weight:700;}
-  .badge-ok{background:var(--ok-tint);color:var(--ok);padding:2px 8px;border-radius:6px;font-size:12px;}
-  .badge-wait{background:var(--wait-tint);color:var(--wait);padding:2px 8px;border-radius:6px;font-size:12px;}
-  #loginScreen{max-width:360px;margin:60px auto;}
+  .prod-thumb{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0;background:var(--leaf-tint);}
+  .prod-name{font-weight:700;font-family:var(--font-serif);font-size:14px;color:var(--ink);}
+  .qty-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:16px;cursor:pointer;color:var(--leaf-dark);}
+  button.primary{background:var(--leaf-dark);color:#FBF8EF;border:none;border-radius:3px;padding:11px 18px;font-size:14px;cursor:pointer;font-weight:600;letter-spacing:1px;}
+  button.secondary{background:var(--rose-tint);color:var(--rose-dark);border:none;border-radius:3px;padding:9px 14px;font-size:13px;cursor:pointer;font-weight:600;letter-spacing:.5px;}
+  button.tiny{background:var(--leaf-tint);color:var(--leaf-dark);border:1px solid var(--line);border-radius:3px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600;}
+  input{padding:10px 11px;border:1px solid var(--line);border-radius:3px;font-size:14px;width:100%;background:#FFFEFB;}
+  input:focus{outline:none;border-color:var(--gold);}
+  .tab{padding:10px 16px;border-radius:6px 6px 0 0;cursor:pointer;font-weight:700;font-size:13px;letter-spacing:.5px;font-family:var(--font-serif);}
+  .tab.active{background:var(--surface);color:var(--leaf-dark);border-top:2px solid var(--gold);}
+  .tab.inactive{background:transparent;color:var(--ink-soft);border-top:2px solid transparent;}
+  .badge-low{color:var(--rose-dark);font-weight:700;}
+  .badge-ok{background:var(--ok-tint);color:var(--ok);padding:2px 9px;border-radius:20px;font-size:12px;letter-spacing:.5px;}
+  .badge-wait{background:var(--wait-tint);color:var(--wait);padding:2px 9px;border-radius:20px;font-size:12px;letter-spacing:.5px;}
+  #loginScreen{max-width:360px;margin:56px auto 0;text-align:center;}
+  .divider-flourish{text-align:center;color:var(--gold);font-size:14px;margin:10px 0 18px;letter-spacing:6px;}
   .topbar{display:flex;justify-content:space-between;align-items:center;}
+  .footer-mark{text-align:center;margin-top:28px;color:var(--ink-soft);font-family:var(--font-display);font-style:italic;font-size:13px;letter-spacing:1px;}
+  .footer-mark .line{width:120px;height:1px;margin:8px auto;background:linear-gradient(90deg,transparent,var(--line),transparent);}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div id="loginScreen" class="card">
-    <h1 style="text-align:center;margin-bottom:16px;">荷蘭花選．登入</h1>
+    <div class="brandmark" style="justify-content:center;">
+      <div class="glyph">艸</div>
+    </div>
+    <div style="font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--leaf-dark);letter-spacing:4px;margin-top:8px;">艸</div>
+    <div style="font-family:var(--font-display);font-style:italic;color:var(--gold);font-size:13px;letter-spacing:2px;margin-top:2px;">HOLLAND FLOWER SELECT</div>
+    <div class="muted" style="margin-top:2px;">荷蘭花選．B2B 訂花平台</div>
+    <div class="divider-flourish">❦</div>
     <div style="margin-bottom:10px;"><input id="loginId" placeholder="花商編號 / 管理者帳號"></div>
     <div style="margin-bottom:14px;"><input id="loginSecret" type="password" placeholder="登記手機號碼 / 管理者密碼"></div>
-    <button class="primary" style="width:100%;" onclick="doLogin()">登入</button>
+    <button class="primary" style="width:100%;" onclick="doLogin()">登　入</button>
     <div id="loginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
   </div>
 
   <div id="mainScreen" style="display:none;">
     <div class="topbar">
-      <div>
-        <h1 id="shopNameLabel"></h1>
-        <div class="muted">負責人：<span id="ownerLabel"></span></div>
+      <div class="brandmark">
+        <div class="glyph">艸</div>
+        <div class="brandtext">
+          <div class="zh" id="shopNameLabel"></div>
+          <div class="muted" style="font-size:12px;">負責人：<span id="ownerLabel"></span></div>
+        </div>
       </div>
       <button class="secondary" onclick="logout()">登出</button>
     </div>
 
-    <div style="display:flex;gap:6px;margin-top:16px;">
+    <div style="display:flex;gap:4px;margin-top:18px;">
       <div class="tab active" id="tabCatalogBtn" onclick="switchTab('catalog')">訂花</div>
       <div class="tab inactive" id="tabOrdersBtn" onclick="switchTab('orders')">我的訂單</div>
     </div>
 
-    <div id="catalogPane" class="card" style="border-top-left-radius:0;">
+    <div id="catalogPane" class="card" style="border-top-left-radius:0;margin-top:0;">
       <h2>目前可訂花材</h2>
       <div id="catalogList" class="muted">載入中...</div>
-      <div style="margin-top:14px;text-align:right;">
+      <div style="margin-top:16px;text-align:right;">
         <button class="primary" onclick="submitCart()">送出訂購單</button>
       </div>
     </div>
 
-    <div id="ordersPane" class="card" style="border-top-left-radius:0;display:none;">
+    <div id="ordersPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
       <h2>我的訂單</h2>
       <div id="ordersList" class="muted">載入中...</div>
     </div>
+
+    <div class="footer-mark"><div class="line"></div>艸　·　Holland Flower Select</div>
   </div>
 
   <div id="adminScreen" style="display:none;">
     <div class="topbar">
-      <div><h1>管理後台</h1></div>
+      <div class="brandmark">
+        <div class="glyph">艸</div>
+        <div class="brandtext">
+          <div class="zh">管理後台</div>
+          <div class="muted" style="font-size:12px;">艸．荷蘭花選</div>
+        </div>
+      </div>
       <button class="secondary" onclick="logout()">登出</button>
     </div>
 
-    <div style="display:flex;gap:6px;margin-top:16px;">
+    <div style="display:flex;gap:4px;margin-top:18px;">
       <div class="tab active" id="tabAdminOrdersBtn" onclick="switchAdminTab('orders')">訂單管理</div>
       <div class="tab inactive" id="tabAdminShopsBtn" onclick="switchAdminTab('shops')">花商管理</div>
       <div class="tab inactive" id="tabAdminStockBtn" onclick="switchAdminTab('stock')">庫存管理</div>
     </div>
 
-    <div id="adminOrdersPane" class="card" style="border-top-left-radius:0;">
+    <div id="adminOrdersPane" class="card" style="border-top-left-radius:0;margin-top:0;">
       <h2>所有訂單</h2>
       <div id="adminOrdersList" class="muted">載入中...</div>
     </div>
 
-    <div id="adminShopsPane" class="card" style="border-top-left-radius:0;display:none;">
+    <div id="adminShopsPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
       <h2>花商列表</h2>
       <div id="adminShopsList" class="muted">載入中...</div>
     </div>
 
-    <div id="adminStockPane" class="card" style="border-top-left-radius:0;display:none;">
+    <div id="adminStockPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
       <h2>庫存管理</h2>
       <div id="adminStockList" class="muted">載入中...</div>
     </div>
+
+    <div class="footer-mark"><div class="line"></div>艸　·　Holland Flower Select</div>
   </div>
 
 </div>
