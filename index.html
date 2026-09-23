@@ -31,6 +31,7 @@
   .qty-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:16px;cursor:pointer;}
   button.primary{background:var(--leaf);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-weight:700;}
   button.secondary{background:var(--rose-tint);color:var(--rose);border:none;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;font-weight:700;}
+  button.tiny{background:var(--leaf-tint);color:var(--leaf-dark);border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:700;}
   input{padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;width:100%;}
   .tab{padding:10px 14px;border-radius:10px 10px 0 0;cursor:pointer;font-weight:700;font-size:14px;}
   .tab.active{background:var(--surface);color:var(--leaf-dark);}
@@ -39,7 +40,9 @@
   .badge-ok{background:var(--ok-tint);color:var(--ok);padding:2px 8px;border-radius:6px;font-size:12px;}
   .badge-wait{background:var(--wait-tint);color:var(--wait);padding:2px 8px;border-radius:6px;font-size:12px;}
   #loginScreen{max-width:360px;margin:60px auto;}
+  #adminLoginScreen{max-width:360px;margin:60px auto;display:none;}
   .topbar{display:flex;justify-content:space-between;align-items:center;}
+  .link-btn{background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;}
 </style>
 </head>
 <body>
@@ -51,6 +54,19 @@
     <div style="margin-bottom:14px;"><input id="loginPhone" placeholder="登記手機號碼"></div>
     <button class="primary" style="width:100%;" onclick="doLogin()">登入</button>
     <div id="loginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
+    <div style="margin-top:16px;text-align:center;">
+      <button class="link-btn" onclick="showAdminLogin()">管理者登入</button>
+    </div>
+  </div>
+
+  <div id="adminLoginScreen" class="card">
+    <h1 style="text-align:center;margin-bottom:16px;">管理者登入</h1>
+    <div style="margin-bottom:14px;"><input id="adminPinInput" type="password" placeholder="管理者 PIN"></div>
+    <button class="primary" style="width:100%;" onclick="doAdminLogin()">登入</button>
+    <div id="adminLoginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
+    <div style="margin-top:16px;text-align:center;">
+      <button class="link-btn" onclick="showShopLogin()">回花商登入</button>
+    </div>
   </div>
 
   <div id="mainScreen" style="display:none;">
@@ -81,6 +97,34 @@
     </div>
   </div>
 
+  <div id="adminScreen" style="display:none;">
+    <div class="topbar">
+      <div><h1>管理後台</h1></div>
+      <button class="secondary" onclick="logout()">登出</button>
+    </div>
+
+    <div style="display:flex;gap:6px;margin-top:16px;">
+      <div class="tab active" id="tabAdminOrdersBtn" onclick="switchAdminTab('orders')">訂單管理</div>
+      <div class="tab inactive" id="tabAdminShopsBtn" onclick="switchAdminTab('shops')">花商管理</div>
+      <div class="tab inactive" id="tabAdminStockBtn" onclick="switchAdminTab('stock')">庫存管理</div>
+    </div>
+
+    <div id="adminOrdersPane" class="card" style="border-top-left-radius:0;">
+      <h2>所有訂單</h2>
+      <div id="adminOrdersList" class="muted">載入中...</div>
+    </div>
+
+    <div id="adminShopsPane" class="card" style="border-top-left-radius:0;display:none;">
+      <h2>花商列表</h2>
+      <div id="adminShopsList" class="muted">載入中...</div>
+    </div>
+
+    <div id="adminStockPane" class="card" style="border-top-left-radius:0;display:none;">
+      <h2>庫存管理</h2>
+      <div id="adminStockList" class="muted">載入中...</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -98,6 +142,7 @@ async function api(fn, args){
 }
 
 let SHOP = null;
+let IS_ADMIN = false;
 let PRODUCTS = [];
 let CART = {};
 
@@ -105,10 +150,23 @@ function loadSession(){
   try {
     const raw = sessionStorage.getItem('ff_shop');
     if (raw) SHOP = JSON.parse(raw);
-  } catch(e){ SHOP = null; }
+    IS_ADMIN = sessionStorage.getItem('ff_admin') === '1';
+  } catch(e){ SHOP = null; IS_ADMIN = false; }
 }
 function saveSession(){
   try { sessionStorage.setItem('ff_shop', JSON.stringify(SHOP)); } catch(e){}
+}
+function saveAdminSession(){
+  try { sessionStorage.setItem('ff_admin', '1'); } catch(e){}
+}
+
+function showAdminLogin(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminLoginScreen').style.display = '';
+}
+function showShopLogin(){
+  document.getElementById('adminLoginScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = '';
 }
 
 async function doLogin(){
@@ -127,19 +185,45 @@ async function doLogin(){
   }
 }
 
+async function doAdminLogin(){
+  const pin = document.getElementById('adminPinInput').value.trim();
+  const msg = document.getElementById('adminLoginMsg');
+  msg.textContent = '登入中...';
+  try {
+    const ok = await api('adminLogin', [pin]);
+    if (!ok) { msg.textContent = 'PIN 錯誤'; return; }
+    IS_ADMIN = true;
+    saveAdminSession();
+    enterAdminApp();
+  } catch(e) {
+    msg.textContent = '登入失敗：' + e.message;
+  }
+}
+
 function logout(){
   SHOP = null;
-  try { sessionStorage.removeItem('ff_shop'); } catch(e){}
+  IS_ADMIN = false;
+  try { sessionStorage.removeItem('ff_shop'); sessionStorage.removeItem('ff_admin'); } catch(e){}
   document.getElementById('loginScreen').style.display = '';
+  document.getElementById('adminLoginScreen').style.display = 'none';
   document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('adminScreen').style.display = 'none';
 }
 
 function enterApp(){
   document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminLoginScreen').style.display = 'none';
   document.getElementById('mainScreen').style.display = '';
   document.getElementById('shopNameLabel').textContent = SHOP.shopName || '';
   document.getElementById('ownerLabel').textContent = SHOP.owner || '';
   loadCatalog();
+}
+
+function enterAdminApp(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminLoginScreen').style.display = 'none';
+  document.getElementById('adminScreen').style.display = '';
+  loadAdminOrders();
 }
 
 function switchTab(name){
@@ -149,6 +233,18 @@ function switchTab(name){
   document.getElementById('tabCatalogBtn').className = 'tab ' + (isCatalog ? 'active' : 'inactive');
   document.getElementById('tabOrdersBtn').className = 'tab ' + (isCatalog ? 'inactive' : 'active');
   if (!isCatalog) loadOrders();
+}
+
+function switchAdminTab(name){
+  const panes = {orders:'adminOrdersPane', shops:'adminShopsPane', stock:'adminStockPane'};
+  const btns = {orders:'tabAdminOrdersBtn', shops:'tabAdminShopsBtn', stock:'tabAdminStockBtn'};
+  Object.keys(panes).forEach(k => {
+    document.getElementById(panes[k]).style.display = (k === name) ? '' : 'none';
+    document.getElementById(btns[k]).className = 'tab ' + (k === name ? 'active' : 'inactive');
+  });
+  if (name === 'orders') loadAdminOrders();
+  if (name === 'shops') loadAdminShops();
+  if (name === 'stock') loadAdminStock();
 }
 
 async function loadCatalog(){
@@ -244,8 +340,143 @@ async function doConfirm(orderId){
   } catch(e) { alert('操作失敗：' + e.message); }
 }
 
+// ==== 管理後台 ====
+
+async function loadAdminOrders(){
+  const el = document.getElementById('adminOrdersList');
+  el.textContent = '載入中...';
+  try {
+    const orders = await api('getAllOrders', []);
+    if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
+    el.innerHTML = orders.map(o => {
+      let actions = '';
+      if (o.status === 'pending' || o.status === 'pending_arrival') {
+        actions += `<button class="tiny" onclick="adminConfirm('${o.orderId}')">確認金額</button> `;
+        actions += `<button class="tiny" onclick="adminMarkPurchased('${o.orderId}')">標記已採購</button>`;
+      }
+      if (o.status === 'purchased') {
+        actions += `<button class="tiny" onclick="adminMarkArrived('${o.orderId}')">標記已到貨</button>`;
+      }
+      if (o.status === 'arrived' || o.status === 'confirmed') {
+        actions += `<button class="tiny" onclick="adminRecordArrival('${o.orderId}')">登記到貨與帳款</button>`;
+      }
+      if (o.status === 'settled' || o.finalAmount) {
+        actions += `<button class="tiny" onclick="adminMarkSettled('${o.orderId}')">標記已結清</button>`;
+      }
+      if (o.status === 'cancel_requested') {
+        actions += `<button class="tiny" onclick="adminReviewCancel('${o.orderId}',true)">核准取消</button> `;
+        actions += `<button class="tiny" onclick="adminReviewCancel('${o.orderId}',false)">駁回取消</button>`;
+      }
+      return `
+      <div class="row" style="display:block;">
+        <div style="display:flex;justify-content:space-between;">
+          <div style="font-weight:700;">${o.orderId}　<span class="muted">${o.shopId || ''}</span></div>
+          <div class="badge-wait">${STATUS_LABEL[o.status] || o.status}</div>
+        </div>
+        <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
+        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}${o.finalAmount ? '　確認金額：NT$' + o.finalAmount : ''}</div>
+        <div style="margin-top:8px;">${actions}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.textContent = '載入失敗：' + e.message;
+  }
+}
+
+async function adminConfirm(orderId){
+  const amt = prompt('請輸入確認金額 (NT$)：');
+  if (amt === null || amt.trim() === '') return;
+  try {
+    await api('adminConfirmAmount', [orderId, Number(amt)]);
+    loadAdminOrders();
+  } catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function adminMarkPurchased(orderId){
+  try { await api('adminMarkPurchased', [orderId]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function adminMarkArrived(orderId){
+  try { await api('adminMarkArrived', [orderId]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function adminRecordArrival(orderId){
+  const amt = prompt('請輸入最終結算金額 (NT$)：');
+  if (amt === null || amt.trim() === '') return;
+  try { await api('recordArrivalAndBill', [orderId, Number(amt)]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function adminMarkSettled(orderId){
+  try { await api('markSettled', [orderId]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function adminReviewCancel(orderId, approve){
+  try { await api('adminReviewCancelRequest', [orderId, approve]); loadAdminOrders(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function loadAdminShops(){
+  const el = document.getElementById('adminShopsList');
+  el.textContent = '載入中...';
+  try {
+    const shops = await api('getAllShops', []);
+    el.innerHTML = shops.map(s => `
+      <div class="row" style="display:block;">
+        <div style="display:flex;justify-content:space-between;">
+          <div style="font-weight:700;">${s.shopName}　<span class="muted">${s.shopId}</span></div>
+          <div class="${s.status === 'active' ? 'badge-ok' : 'badge-wait'}">${s.status === 'active' ? '啟用中' : '待審核'}</div>
+        </div>
+        <div class="muted">負責人：${s.owner}　電話：${s.phone}</div>
+        <div class="muted">地址：${s.address || ''}</div>
+        <div style="margin-top:8px;">
+          <button class="tiny" onclick="adminToggleShop('${s.shopId}','${s.status === 'active' ? 'pending' : 'active'}')">${s.status === 'active' ? '停用此花商' : '啟用此花商'}</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.textContent = '載入失敗：' + e.message;
+  }
+}
+
+async function adminToggleShop(shopId, newStatus){
+  try { await api('toggleShopStatus', [shopId, newStatus]); loadAdminShops(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
+async function loadAdminStock(){
+  const el = document.getElementById('adminStockList');
+  el.textContent = '載入中...';
+  try {
+    const products = await api('getInventory', []);
+    el.innerHTML = products.map(p => `
+      <div class="row">
+        <div class="prod-info">
+          <img class="prod-thumb" src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
+          <div>
+            <div class="prod-name">${p.name}</div>
+            <div class="muted">庫存：${p.stock}　安全庫存：${p.safetyStock}${p.stock < p.safetyStock ? ' · <span class="badge-low">偏低</span>' : ''}</div>
+          </div>
+        </div>
+        <button class="tiny" onclick="adminUpdateStock('${p.sku}',${p.stock})">調整庫存</button>
+      </div>`).join('');
+  } catch(e) {
+    el.textContent = '載入失敗：' + e.message;
+  }
+}
+
+async function adminUpdateStock(sku, current){
+  const val = prompt('輸入新庫存數量：', current);
+  if (val === null || val.trim() === '') return;
+  try { await api('updateStock', [sku, Number(val)]); loadAdminStock(); }
+  catch(e) { alert('操作失敗：' + e.message); }
+}
+
 loadSession();
-if (SHOP) { enterApp(); }
+if (IS_ADMIN) { enterAdminApp(); }
+else if (SHOP) { enterApp(); }
 </script>
 </body>
 </html>
