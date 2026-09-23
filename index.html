@@ -67,6 +67,41 @@
   .topbar{display:flex;justify-content:space-between;align-items:center;}
   .footer-mark{text-align:center;margin-top:28px;color:var(--ink-soft);font-family:var(--font-display);font-style:italic;font-size:13px;letter-spacing:1px;}
   .footer-mark .line{width:120px;height:1px;margin:8px auto;background:linear-gradient(90deg,transparent,var(--line),transparent);}
+
+  .hero{position:relative;overflow:hidden;border-radius:4px;margin-top:14px;padding:30px 20px 26px;text-align:center;color:#FBF8EF;
+    background:
+      radial-gradient(420px 200px at 12% 0%, rgba(255,255,255,.08), transparent 60%),
+      radial-gradient(420px 220px at 90% 100%, rgba(255,255,255,.06), transparent 55%),
+      linear-gradient(160deg, var(--leaf-dark), var(--leaf) 55%, var(--leaf-dark));
+  }
+  .hero::before{content:'❦';position:absolute;top:10px;left:16px;font-size:22px;color:rgba(255,255,255,.18);}
+  .hero::after{content:'❦';position:absolute;bottom:10px;right:16px;font-size:22px;color:rgba(255,255,255,.18);}
+  .hero .eyebrow{font-family:var(--font-display);font-style:italic;letter-spacing:2px;color:var(--gold-tint);font-size:12px;margin-bottom:6px;}
+  .hero h1.title{font-family:var(--font-serif);font-size:22px;font-weight:700;letter-spacing:1px;color:#FBF8EF;}
+  .hero .sub{margin-top:6px;font-size:12.5px;color:rgba(251,248,239,.78);}
+
+  .toolbar{display:flex;gap:8px;margin-top:14px;}
+  .toolbar input{background:var(--surface);}
+  .chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .chip{padding:5px 13px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-soft);cursor:pointer;font-weight:600;letter-spacing:.3px;}
+  .chip.active{background:var(--leaf-dark);border-color:var(--leaf-dark);color:#FBF8EF;}
+
+  .product-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+  .product-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(75,93,69,.05);display:flex;flex-direction:column;}
+  .product-card .thumb-wrap{position:relative;width:100%;aspect-ratio:1/1;background:var(--leaf-tint);overflow:hidden;}
+  .product-card .thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  .product-card .thumb-wrap .low-flag{position:absolute;top:6px;left:6px;background:var(--rose-dark);color:#fff;font-size:10.5px;padding:2px 7px;border-radius:20px;letter-spacing:.3px;}
+  .product-card .body{padding:9px 10px 11px;display:flex;flex-direction:column;gap:3px;flex:1;}
+  .product-card .p-name{font-family:var(--font-serif);font-weight:700;font-size:13.5px;color:var(--ink);line-height:1.3;}
+  .product-card .p-origin{font-size:11px;color:var(--ink-soft);}
+  .product-card .p-price{font-size:13px;color:var(--rose-dark);font-weight:700;margin-top:2px;}
+  .product-card .p-price .unit{font-size:11px;color:var(--ink-soft);font-weight:500;}
+  .product-card .stepper{margin-top:auto;padding-top:8px;display:flex;align-items:center;justify-content:space-between;}
+
+  .line-cs{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border:1px dashed var(--gold);border-radius:6px;background:var(--gold-tint);}
+  .line-cs .ic{width:30px;height:30px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:1px solid var(--gold);color:var(--gold);}
+  .line-cs .txt{font-size:12.5px;color:var(--ink-soft);line-height:1.4;}
+  .line-cs .txt b{color:var(--leaf-dark);}
 </style>
 </head>
 <body>
@@ -98,6 +133,17 @@
       <button class="secondary" onclick="logout()">登出</button>
     </div>
 
+    <div class="hero">
+      <div class="eyebrow">HOLLAND FLOWER SELECT</div>
+      <div class="title" style="font-family:var(--font-serif);font-size:22px;font-weight:700;letter-spacing:1px;">時令荷蘭鮮花　直送台灣花商</div>
+      <div class="sub">艸．嚴選荷蘭空運花材，當日檢疫、當日出貨</div>
+    </div>
+
+    <div class="line-cs">
+      <div class="ic">◆</div>
+      <div class="txt"><b>官方 LINE 客服</b>　申請中，即將開放線上詢問到貨進度與花材建議，敬請期待。</div>
+    </div>
+
     <div style="display:flex;gap:4px;margin-top:18px;">
       <div class="tab active" id="tabCatalogBtn" onclick="switchTab('catalog')">訂花</div>
       <div class="tab inactive" id="tabOrdersBtn" onclick="switchTab('orders')">我的訂單</div>
@@ -105,6 +151,10 @@
 
     <div id="catalogPane" class="card" style="border-top-left-radius:0;margin-top:0;">
       <h2>目前可訂花材</h2>
+      <div class="toolbar">
+        <input id="catalogSearch" placeholder="搜尋花材名稱／產地" oninput="renderCatalog()">
+      </div>
+      <div class="chip-row" id="catalogChips"></div>
       <div id="catalogList" class="muted">載入中...</div>
       <div style="margin-top:16px;text-align:right;">
         <button class="primary" onclick="submitCart()">送出訂購單</button>
@@ -261,28 +311,58 @@ function switchAdminTab(name){
   if (name === 'stock') loadAdminStock();
 }
 
+let ACTIVE_ORIGIN = '全部';
+
 async function loadCatalog(){
   try {
     PRODUCTS = await api('getCatalog', []);
-    const el = document.getElementById('catalogList');
-    el.innerHTML = PRODUCTS.map(p => `
-      <div class="row">
-        <div class="prod-info">
-          <img class="prod-thumb" src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
-          <div>
-            <div class="prod-name">${p.name}</div>
-            <div class="muted">${p.origin} · NT$${p.price}/${p.unit}${p.stemsPerUnit ? ' · 每單位 ' + p.stemsPerUnit + ' 枝' : ''}${p.stock < p.safetyStock ? ' · <span class="badge-low">庫存偏低</span>' : ''}</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+    renderChips();
+    renderCatalog();
+  } catch(e) {
+    document.getElementById('catalogList').textContent = '載入失敗：' + e.message;
+  }
+}
+
+function renderChips(){
+  const box = document.getElementById('catalogChips');
+  if (!box) return;
+  const origins = ['全部', ...Array.from(new Set(PRODUCTS.map(p => p.origin).filter(Boolean)))];
+  box.innerHTML = origins.map(o => `<div class="chip ${o === ACTIVE_ORIGIN ? 'active' : ''}" onclick="setOrigin('${o}')">${o}</div>`).join('');
+}
+
+function setOrigin(o){
+  ACTIVE_ORIGIN = o;
+  renderChips();
+  renderCatalog();
+}
+
+function renderCatalog(){
+  const el = document.getElementById('catalogList');
+  if (!el) return;
+  const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
+  const filtered = PRODUCTS.filter(p => {
+    const matchesOrigin = ACTIVE_ORIGIN === '全部' || p.origin === ACTIVE_ORIGIN;
+    const matchesQuery = !q || (p.name && p.name.toLowerCase().includes(q)) || (p.origin && p.origin.toLowerCase().includes(q));
+    return matchesOrigin && matchesQuery;
+  });
+  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>'; return; }
+  el.innerHTML = '<div class="product-grid">' + filtered.map(p => `
+    <div class="product-card">
+      <div class="thumb-wrap">
+        <img src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
+        ${p.stock < p.safetyStock ? '<div class="low-flag">庫存偏低</div>' : ''}
+      </div>
+      <div class="body">
+        <div class="p-name">${p.name}</div>
+        <div class="p-origin">${p.origin}${p.stemsPerUnit ? ' · 每單位 ' + p.stemsPerUnit + ' 枝' : ''}</div>
+        <div class="p-price">NT$${p.price} <span class="unit">/${p.unit}</span></div>
+        <div class="stepper">
           <button class="qty-btn" onclick="changeQty('${p.sku}',-1)">−</button>
           <span id="qty-${p.sku}" style="min-width:20px;text-align:center;font-weight:700;">${CART[p.sku] || 0}</span>
           <button class="qty-btn" onclick="changeQty('${p.sku}',1)">＋</button>
         </div>
-      </div>`).join('');
-  } catch(e) {
-    document.getElementById('catalogList').textContent = '載入失敗：' + e.message;
-  }
+      </div>
+    </div>`).join('') + '</div>';
 }
 
 function changeQty(sku, delta){
