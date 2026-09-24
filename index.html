@@ -51,7 +51,7 @@
   .prod-info{display:flex;align-items:center;gap:10px;min-width:0;}
   .prod-thumb{width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0;background:var(--leaf-tint);}
   .prod-name{font-weight:700;font-family:var(--font-serif);font-size:14px;color:var(--ink);}
-  .qty-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:16px;cursor:pointer;color:var(--leaf-dark);}
+  .qty-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:18px;cursor:pointer;color:var(--leaf-dark);touch-action:manipulation;}
   button.primary{background:var(--leaf-dark);color:#FBF8EF;border:none;border-radius:3px;padding:11px 18px;font-size:14px;cursor:pointer;font-weight:600;letter-spacing:1px;}
   button.secondary{background:var(--rose-tint);color:var(--rose-dark);border:none;border-radius:3px;padding:9px 14px;font-size:13px;cursor:pointer;font-weight:600;letter-spacing:.5px;}
   button.tiny{background:var(--leaf-tint);color:var(--leaf-dark);border:1px solid var(--line);border-radius:3px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600;}
@@ -146,6 +146,25 @@
   .cart-bar .cb-info .amt{color:rgba(251,248,239,.8);}
   .cart-bar button.primary{background:var(--gold);color:var(--leaf-dark);}
   .qty-btn.disabled{opacity:.35;pointer-events:none;}
+
+  .countdown{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-serif);font-size:12.5px;font-weight:700;color:var(--rose-dark);}
+  .countdown.urgent{color:#B23A48;}
+  .countdown .cd-icon{font-size:11px;}
+
+  .search-wrap{position:relative;flex:1;}
+  .search-wrap input{width:100%;padding-right:32px;}
+  .search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:50%;
+    border:none;background:var(--line-soft);color:var(--ink-soft);font-size:12px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;}
+  .search-clear.show{display:flex;}
+
+  .skeleton{background:linear-gradient(90deg,var(--line-soft) 25%,var(--line) 37%,var(--line-soft) 63%);background-size:400% 100%;animation:skeleton-shine 1.4s ease infinite;border-radius:4px;}
+  @keyframes skeleton-shine{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+  .skel-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .skel-card .skel-thumb{aspect-ratio:1/1;}
+  .skel-card .skel-body{padding:9px 10px 11px;}
+  .skel-card .skel-line{height:10px;margin-top:7px;}
+  .skel-row{padding:12px 0;border-bottom:1px dashed var(--line);}
+  .skel-row .skel-line{height:11px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -188,6 +207,7 @@
         <div>
           <div style="font-weight:700;font-family:var(--font-serif);color:var(--leaf-dark);">本批次訂購截止</div>
           <div class="muted" id="batchCutoffLabel">載入中...</div>
+          <div id="batchCountdown" style="margin-top:2px;"></div>
         </div>
         <div class="badge-wait" id="batchIdLabel"></div>
       </div>
@@ -228,7 +248,10 @@
     <div id="catalogPane" class="card" style="border-top-left-radius:0;margin-top:0;">
       <h2>目前可訂花材</h2>
       <div class="toolbar">
-        <input id="catalogSearch" placeholder="搜尋花材名稱／產地" oninput="renderCatalog()">
+        <div class="search-wrap">
+          <input id="catalogSearch" placeholder="搜尋花材名稱／產地" oninput="renderCatalog(); toggleSearchClear('catalogSearch','catalogSearchClear');">
+          <button class="search-clear" id="catalogSearchClear" onclick="clearSearch('catalogSearch', renderCatalog)" aria-label="清除搜尋">✕</button>
+        </div>
       </div>
       <div class="cat-nav" id="catalogCats"></div>
       <div id="catalogList" class="muted">載入中...</div>
@@ -267,7 +290,14 @@
 
     <div id="adminOrdersPane" class="card" style="border-top-left-radius:0;margin-top:0;">
       <h2>所有訂單</h2>
-      <div id="adminOrdersList" class="muted">載入中...</div>
+      <div class="toolbar" style="margin-top:0;">
+        <div class="search-wrap">
+          <input id="adminOrdersSearch" placeholder="搜尋訂單編號／花商編號" oninput="renderAdminOrders(); toggleSearchClear('adminOrdersSearch','adminOrdersSearchClear');">
+          <button class="search-clear" id="adminOrdersSearchClear" onclick="clearSearch('adminOrdersSearch', renderAdminOrders)" aria-label="清除搜尋">✕</button>
+        </div>
+      </div>
+      <div class="chip-row" id="adminOrdersFilterChips" style="margin-top:10px;"></div>
+      <div id="adminOrdersList" class="muted" style="margin-top:10px;">載入中...</div>
     </div>
 
     <div id="adminBatchPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
@@ -277,12 +307,24 @@
 
     <div id="adminShopsPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
       <h2>花商列表</h2>
-      <div id="adminShopsList" class="muted">載入中...</div>
+      <div class="toolbar" style="margin-top:0;">
+        <div class="search-wrap">
+          <input id="adminShopsSearch" placeholder="搜尋花商名稱／編號" oninput="renderAdminShops(); toggleSearchClear('adminShopsSearch','adminShopsSearchClear');">
+          <button class="search-clear" id="adminShopsSearchClear" onclick="clearSearch('adminShopsSearch', renderAdminShops)" aria-label="清除搜尋">✕</button>
+        </div>
+      </div>
+      <div id="adminShopsList" class="muted" style="margin-top:10px;">載入中...</div>
     </div>
 
     <div id="adminStockPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
       <h2>庫存管理</h2>
-      <div id="adminStockList" class="muted">載入中...</div>
+      <div class="toolbar" style="margin-top:0;">
+        <div class="search-wrap">
+          <input id="adminStockSearch" placeholder="搜尋花材名稱／SKU" oninput="renderAdminStock(); toggleSearchClear('adminStockSearch','adminStockSearchClear');">
+          <button class="search-clear" id="adminStockSearchClear" onclick="clearSearch('adminStockSearch', renderAdminStock)" aria-label="清除搜尋">✕</button>
+        </div>
+      </div>
+      <div id="adminStockList" class="muted" style="margin-top:10px;">載入中...</div>
     </div>
 
     <div id="adminPromoPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
@@ -309,6 +351,43 @@
 </div>
 
 <script>
+function toggleSearchClear(inputId, clearBtnId){
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById(clearBtnId);
+  if (!input || !btn) return;
+  btn.classList.toggle('show', input.value.length > 0);
+}
+
+function clearSearch(inputId, rerenderFn){
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = '';
+  toggleSearchClear(inputId, inputId + 'Clear');
+  if (typeof rerenderFn === 'function') rerenderFn();
+  input.focus();
+}
+
+function skeletonCards(n){
+  return '<div class="product-grid">' + Array(n).fill(0).map(() => `
+    <div class="skel-card">
+      <div class="skeleton skel-thumb"></div>
+      <div class="skel-body">
+        <div class="skeleton skel-line" style="width:80%;"></div>
+        <div class="skeleton skel-line" style="width:55%;"></div>
+        <div class="skeleton skel-line" style="width:40%;"></div>
+      </div>
+    </div>`).join('') + '</div>';
+}
+
+function skeletonRows(n){
+  return Array(n).fill(0).map(() => `
+    <div class="skel-row">
+      <div class="skeleton skel-line" style="width:60%;"></div>
+      <div class="skeleton skel-line" style="width:85%;"></div>
+      <div class="skeleton skel-line" style="width:45%;"></div>
+    </div>`).join('');
+}
+
 function toggleInfo(id){
   const el = document.getElementById(id);
   if (!el) return;
@@ -402,6 +481,8 @@ function enterApp(){
   loadBatchInfo();
 }
 
+let BATCH_COUNTDOWN_TIMER = null;
+
 async function loadBatchInfo(){
   try {
     const b = await api('getCurrentBatchInfo', []);
@@ -410,7 +491,36 @@ async function loadBatchInfo(){
     card.style.display = '';
     document.getElementById('batchCutoffLabel').textContent = b.cutoffAt ? new Date(b.cutoffAt).toLocaleString('zh-TW') + ' 前完成付款' : '';
     document.getElementById('batchIdLabel').textContent = b.batchId;
+    startBatchCountdown(b.cutoffAt);
   } catch(e) { /* ignore */ }
+}
+
+function startBatchCountdown(cutoffAt){
+  const el = document.getElementById('batchCountdown');
+  if (!el) return;
+  if (BATCH_COUNTDOWN_TIMER) clearInterval(BATCH_COUNTDOWN_TIMER);
+  if (!cutoffAt) { el.innerHTML = ''; return; }
+  const cutoffMs = new Date(cutoffAt).getTime();
+  const tick = () => {
+    const diff = cutoffMs - Date.now();
+    if (diff <= 0) {
+      el.innerHTML = '<span class="countdown urgent"><span class="cd-icon">⏰</span>已截止，等待下一批次開放</span>';
+      clearInterval(BATCH_COUNTDOWN_TIMER);
+      return;
+    }
+    const totalMin = Math.floor(diff / 60000);
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins = totalMin % 60;
+    const urgent = diff < 1000 * 60 * 60 * 24; // 剩不到 1 天
+    let label;
+    if (days > 0) label = `剩 ${days} 天 ${hours} 小時`;
+    else if (hours > 0) label = `剩 ${hours} 小時 ${mins} 分`;
+    else label = `剩 ${mins} 分鐘`;
+    el.innerHTML = `<span class="countdown${urgent ? ' urgent' : ''}"><span class="cd-icon">⏰</span>${label}</span>`;
+  };
+  tick();
+  BATCH_COUNTDOWN_TIMER = setInterval(tick, 30000);
 }
 
 function enterAdminApp(){
@@ -469,6 +579,8 @@ function getCategory(sku){
 }
 
 async function loadCatalog(){
+  const catalogEl = document.getElementById('catalogList');
+  if (catalogEl) catalogEl.innerHTML = skeletonCards(6);
   try {
     PRODUCTS = await api('getCatalog', []);
     renderCats();
@@ -632,7 +744,7 @@ const ORDER_ITEMS_CACHE = {};
 
 async function loadOrders(){
   const el = document.getElementById('ordersList');
-  el.textContent = '載入中...';
+  el.innerHTML = skeletonRows(3);
   try {
     const orders = await api('getShopOrders', [SHOP.shopId]);
     if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
@@ -730,51 +842,93 @@ async function doCancel(orderId){
 
 const ADMIN_FULFILL_FLOW = ['待採購', '已跟荷蘭下單', '運送檢疫中', '到貨可配送', '已完成'];
 
+let ADMIN_ORDERS = [];
+let ADMIN_ORDER_FILTER = '全部';
+const ADMIN_ORDER_FILTERS = ['全部', '待確認', '待付款', '已收款', '已取消'];
+
 async function loadAdminOrders(){
   const el = document.getElementById('adminOrdersList');
-  el.textContent = '載入中...';
+  el.innerHTML = skeletonRows(4);
   try {
-    const orders = await api('getAllOrders', []);
-    if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
-    const needsAction = o => o.paymentStatus !== '已收款' && o.transferLast5 && o.fulfillStatus !== '已取消';
-    const sorted = orders.slice().sort((a, b) => (needsAction(b) ? 1 : 0) - (needsAction(a) ? 1 : 0));
-    el.innerHTML = sorted.map(o => {
-      const paid = o.paymentStatus === '已收款';
-      const cancelled = o.fulfillStatus === '已取消';
-      const pendingConfirm = !paid && o.transferLast5 && !cancelled;
-      let actions = '';
-      if (pendingConfirm) {
-        actions += `<button class="tiny" onclick="adminConfirmPay('${o.orderId}')">確認款項（末五碼 ${o.transferLast5}）</button> `;
-      }
-      if (paid && !cancelled) {
-        const idx = ADMIN_FULFILL_FLOW.indexOf(o.fulfillStatus);
-        const next = idx >= 0 && idx < ADMIN_FULFILL_FLOW.length - 1 ? ADMIN_FULFILL_FLOW[idx + 1] : null;
-        if (next) actions += `<button class="tiny" onclick="adminNextStatus('${o.orderId}','${next}')">推進至「${next}」</button>`;
-      }
-      if (o.note) {
-        actions += ` <span class="muted">備註：${o.note}</span>`;
-      }
-      return `
-      <div class="row" style="display:block;${pendingConfirm ? 'border-left:3px solid var(--rose-dark, #b23a48);background:rgba(178,58,72,0.04);' : ''}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div style="font-weight:700;">${o.orderId}${pendingConfirm ? ' <span style="font-weight:700;font-size:11px;color:var(--rose-dark, #b23a48);">待確認</span>' : ''}　<span class="muted">${o.shopId || ''}</span></div>
-          <div style="display:flex;gap:6px;">
-            <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
-            <div class="badge-wait">${o.fulfillStatus || '待採購'}</div>
-          </div>
-        </div>
-        <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}　批次：${o.batchId || ''}</div>
-        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}</div>
-        <div style="margin-top:8px;">
-          <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
-          ${actions}
-        </div>
-        <div id="items-${o.orderId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
-      </div>`;
-    }).join('');
+    ADMIN_ORDERS = await api('getAllOrders', []);
+    renderAdminOrderFilterChips();
+    renderAdminOrders();
   } catch(e) {
     el.textContent = '載入失敗：' + e.message;
   }
+}
+
+function renderAdminOrderFilterChips(){
+  const box = document.getElementById('adminOrdersFilterChips');
+  if (!box) return;
+  const needsAction = o => o.paymentStatus !== '已收款' && o.transferLast5 && o.fulfillStatus !== '已取消';
+  const counts = {
+    '全部': ADMIN_ORDERS.length,
+    '待確認': ADMIN_ORDERS.filter(needsAction).length,
+    '待付款': ADMIN_ORDERS.filter(o => o.paymentStatus !== '已收款' && !o.transferLast5 && o.fulfillStatus !== '已取消').length,
+    '已收款': ADMIN_ORDERS.filter(o => o.paymentStatus === '已收款').length,
+    '已取消': ADMIN_ORDERS.filter(o => o.fulfillStatus === '已取消').length,
+  };
+  box.innerHTML = ADMIN_ORDER_FILTERS.map(f => `<div class="chip ${f === ADMIN_ORDER_FILTER ? 'active' : ''}" onclick="setAdminOrderFilter('${f}')">${f}（${counts[f]}）</div>`).join('');
+}
+
+function setAdminOrderFilter(f){
+  ADMIN_ORDER_FILTER = f;
+  renderAdminOrderFilterChips();
+  renderAdminOrders();
+}
+
+function renderAdminOrders(){
+  const el = document.getElementById('adminOrdersList');
+  if (!el) return;
+  const q = (document.getElementById('adminOrdersSearch')?.value || '').trim().toLowerCase();
+  const needsAction = o => o.paymentStatus !== '已收款' && o.transferLast5 && o.fulfillStatus !== '已取消';
+  let filtered = ADMIN_ORDERS.filter(o => {
+    const matchesQuery = !q || (o.orderId && o.orderId.toLowerCase().includes(q)) || (String(o.shopId || '').toLowerCase().includes(q));
+    if (!matchesQuery) return false;
+    if (ADMIN_ORDER_FILTER === '全部') return true;
+    if (ADMIN_ORDER_FILTER === '待確認') return needsAction(o);
+    if (ADMIN_ORDER_FILTER === '待付款') return o.paymentStatus !== '已收款' && !o.transferLast5 && o.fulfillStatus !== '已取消';
+    if (ADMIN_ORDER_FILTER === '已收款') return o.paymentStatus === '已收款';
+    if (ADMIN_ORDER_FILTER === '已取消') return o.fulfillStatus === '已取消';
+    return true;
+  });
+  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的訂單</div>'; return; }
+  const sorted = filtered.slice().sort((a, b) => (needsAction(b) ? 1 : 0) - (needsAction(a) ? 1 : 0));
+  el.innerHTML = sorted.map(o => {
+    const paid = o.paymentStatus === '已收款';
+    const cancelled = o.fulfillStatus === '已取消';
+    const pendingConfirm = !paid && o.transferLast5 && !cancelled;
+    let actions = '';
+    if (pendingConfirm) {
+      actions += `<button class="tiny" onclick="adminConfirmPay('${o.orderId}')">確認款項（末五碼 ${o.transferLast5}）</button> `;
+    }
+    if (paid && !cancelled) {
+      const idx = ADMIN_FULFILL_FLOW.indexOf(o.fulfillStatus);
+      const next = idx >= 0 && idx < ADMIN_FULFILL_FLOW.length - 1 ? ADMIN_FULFILL_FLOW[idx + 1] : null;
+      if (next) actions += `<button class="tiny" onclick="adminNextStatus('${o.orderId}','${next}')">推進至「${next}」</button>`;
+    }
+    if (o.note) {
+      actions += ` <span class="muted">備註：${o.note}</span>`;
+    }
+    return `
+    <div class="row" style="display:block;${pendingConfirm ? 'border-left:3px solid var(--rose-dark, #b23a48);background:rgba(178,58,72,0.04);' : ''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="font-weight:700;">${o.orderId}${pendingConfirm ? ' <span style="font-weight:700;font-size:11px;color:var(--rose-dark, #b23a48);">待確認</span>' : ''}　<span class="muted">${o.shopId || ''}</span></div>
+        <div style="display:flex;gap:6px;">
+          <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
+          <div class="badge-wait">${o.fulfillStatus || '待採購'}</div>
+        </div>
+      </div>
+      <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}　批次：${o.batchId || ''}</div>
+      <div class="muted">預估金額：NT$${o.estimatedAmount || 0}</div>
+      <div style="margin-top:8px;">
+        <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
+        ${actions}
+      </div>
+      <div id="items-${o.orderId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
+    </div>`;
+  }).join('');
 }
 
 async function adminConfirmPay(orderId){
@@ -800,7 +954,7 @@ async function adminNextStatus(orderId, newStatus){
 
 async function loadAdminBatch(){
   const el = document.getElementById('adminBatchList');
-  el.textContent = '載入中...';
+  el.innerHTML = skeletonRows(3);
   try {
     const batch = await api('getCurrentBatchInfo', []);
     const summary = await api('getBatchSummary', [batch.batchId]);
@@ -820,26 +974,37 @@ async function loadAdminBatch(){
   }
 }
 
+let ADMIN_SHOPS = [];
+
 async function loadAdminShops(){
   const el = document.getElementById('adminShopsList');
-  el.textContent = '載入中...';
+  el.innerHTML = skeletonRows(4);
   try {
-    const shops = await api('getAllShops', []);
-    el.innerHTML = shops.map(s => `
-      <div class="row" style="display:block;">
-        <div style="display:flex;justify-content:space-between;">
-          <div style="font-weight:700;">${s.shopName}　<span class="muted">${s.shopId}</span></div>
-          <div class="${s.status === 'active' ? 'badge-ok' : 'badge-wait'}">${s.status === 'active' ? '啟用中' : '待審核'}</div>
-        </div>
-        <div class="muted">負責人：${s.owner}　電話：${s.phone}</div>
-        <div class="muted">地址：${s.address || ''}</div>
-        <div style="margin-top:8px;">
-          <button class="tiny" onclick="adminToggleShop('${s.shopId}','${s.status === 'active' ? 'pending' : 'active'}')">${s.status === 'active' ? '停用此花商' : '啟用此花商'}</button>
-        </div>
-      </div>`).join('');
+    ADMIN_SHOPS = await api('getAllShops', []);
+    renderAdminShops();
   } catch(e) {
     el.textContent = '載入失敗：' + e.message;
   }
+}
+
+function renderAdminShops(){
+  const el = document.getElementById('adminShopsList');
+  if (!el) return;
+  const q = (document.getElementById('adminShopsSearch')?.value || '').trim().toLowerCase();
+  const filtered = ADMIN_SHOPS.filter(s => !q || (s.shopName && s.shopName.toLowerCase().includes(q)) || (String(s.shopId || '').toLowerCase().includes(q)));
+  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花商</div>'; return; }
+  el.innerHTML = filtered.map(s => `
+    <div class="row" style="display:block;">
+      <div style="display:flex;justify-content:space-between;">
+        <div style="font-weight:700;">${s.shopName}　<span class="muted">${s.shopId}</span></div>
+        <div class="${s.status === 'active' ? 'badge-ok' : 'badge-wait'}">${s.status === 'active' ? '啟用中' : '待審核'}</div>
+      </div>
+      <div class="muted">負責人：${s.owner}　電話：${s.phone}</div>
+      <div class="muted">地址：${s.address || ''}</div>
+      <div style="margin-top:8px;">
+        <button class="tiny" onclick="adminToggleShop('${s.shopId}','${s.status === 'active' ? 'pending' : 'active'}')">${s.status === 'active' ? '停用此花商' : '啟用此花商'}</button>
+      </div>
+    </div>`).join('');
 }
 
 async function adminToggleShop(shopId, newStatus){
@@ -847,25 +1012,36 @@ async function adminToggleShop(shopId, newStatus){
   catch(e) { alert('操作失敗：' + e.message); }
 }
 
+let ADMIN_STOCK = [];
+
 async function loadAdminStock(){
   const el = document.getElementById('adminStockList');
-  el.textContent = '載入中...';
+  el.innerHTML = skeletonRows(4);
   try {
-    const products = await api('getInventory', []);
-    el.innerHTML = products.map(p => `
-      <div class="row">
-        <div class="prod-info">
-          <img class="prod-thumb" src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
-          <div>
-            <div class="prod-name">${p.name}</div>
-            <div class="muted">庫存：${p.stock}　安全庫存：${p.safetyStock}${p.stock < p.safetyStock ? ' · <span class="badge-low">偏低</span>' : ''}</div>
-          </div>
-        </div>
-        <button class="tiny" onclick="adminUpdateStock('${p.sku}',${p.stock})">調整庫存</button>
-      </div>`).join('');
+    ADMIN_STOCK = await api('getInventory', []);
+    renderAdminStock();
   } catch(e) {
     el.textContent = '載入失敗：' + e.message;
   }
+}
+
+function renderAdminStock(){
+  const el = document.getElementById('adminStockList');
+  if (!el) return;
+  const q = (document.getElementById('adminStockSearch')?.value || '').trim().toLowerCase();
+  const filtered = ADMIN_STOCK.filter(p => !q || (p.name && p.name.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q)));
+  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>'; return; }
+  el.innerHTML = filtered.map(p => `
+    <div class="row">
+      <div class="prod-info">
+        <img class="prod-thumb" src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
+        <div>
+          <div class="prod-name">${p.name}</div>
+          <div class="muted">庫存：${p.stock}　安全庫存：${p.safetyStock}${p.stock < p.safetyStock ? ' · <span class="badge-low">偏低</span>' : ''}</div>
+        </div>
+      </div>
+      <button class="tiny" onclick="adminUpdateStock('${p.sku}',${p.stock})">調整庫存</button>
+    </div>`).join('');
 }
 
 async function adminUpdateStock(sku, current){
