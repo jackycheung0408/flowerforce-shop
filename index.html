@@ -112,7 +112,9 @@
   .info-nav .info-tile .lbl{font-family:var(--font-serif);font-size:11.5px;font-weight:700;color:var(--leaf-dark);letter-spacing:.5px;}
   .info-nav .info-tile.open{border-color:var(--gold);background:var(--gold-tint);}
 
-  .cat-nav{display:flex;gap:8px;overflow-x:auto;margin-top:14px;padding-bottom:2px;-ms-overflow-style:none;scrollbar-width:none;}
+  #catalogPane{overflow:visible;}
+  .cat-nav{display:flex;gap:8px;overflow-x:auto;margin-top:14px;padding:8px 0;-ms-overflow-style:none;scrollbar-width:none;
+    position:sticky;top:0;z-index:5;background:var(--surface);box-shadow:0 4px 6px -4px rgba(0,0,0,.06);}
   .cat-nav::-webkit-scrollbar{display:none;}
   .cat-nav .cat-item{flex-shrink:0;padding:7px 15px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-soft);cursor:pointer;font-weight:600;letter-spacing:.5px;white-space:nowrap;}
   .cat-nav .cat-item.active{background:var(--leaf-dark);border-color:var(--leaf-dark);color:#FBF8EF;}
@@ -128,6 +130,17 @@
   .info-block.open{display:block;}
   .info-block h3{font-family:var(--font-serif);font-size:14px;color:var(--leaf-dark);margin:0 0 8px;letter-spacing:1px;}
   .info-block p{font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin:0 0 6px;}
+
+  body.has-cart-bar #mainScreen{padding-bottom:70px;}
+  .cart-bar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:none;
+    background:var(--leaf-dark);color:#FBF8EF;box-shadow:0 -4px 14px rgba(0,0,0,.14);}
+  .cart-bar.show{display:flex;}
+  .cart-bar-inner{max-width:640px;margin:0 auto;width:100%;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .cart-bar .cb-info{font-size:12.5px;line-height:1.4;}
+  .cart-bar .cb-info .n{font-family:var(--font-serif);font-weight:700;font-size:14.5px;color:var(--gold-tint);}
+  .cart-bar .cb-info .amt{color:rgba(251,248,239,.8);}
+  .cart-bar button.primary{background:var(--gold);color:var(--leaf-dark);}
+  .qty-btn.disabled{opacity:.35;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -281,6 +294,13 @@
     <div class="footer-mark"><div class="line"></div>艸　·　Holland Flower Select</div>
   </div>
 
+
+<div class="cart-bar" id="cartBar">
+  <div class="cart-bar-inner">
+    <div class="cb-info">已選購 <span class="n" id="cbCount">0</span> 項　<span class="amt">預估 NT$<span id="cbAmount">0</span></span></div>
+    <button class="primary" onclick="submitCart()">送出訂購單</button>
+  </div>
+</div>
 </div>
 
 <script>
@@ -365,6 +385,7 @@ function logout(){
   document.getElementById('loginScreen').style.display = '';
   document.getElementById('mainScreen').style.display = 'none';
   document.getElementById('adminScreen').style.display = 'none';
+  updateCartBar();
 }
 
 function enterApp(){
@@ -401,6 +422,7 @@ function switchTab(name){
   document.getElementById('tabOrdersBtn').className = 'tab ' + (isCatalog ? 'inactive' : 'active');
   if (!isCatalog) loadOrders();
   document.getElementById('tabCatalogBtn').scrollIntoView({behavior:'smooth', block:'start'});
+  updateCartBar();
 }
 
 function switchAdminTab(name){
@@ -446,6 +468,7 @@ async function loadCatalog(){
     PRODUCTS = await api('getCatalog', []);
     renderCats();
     renderCatalog();
+    updateCartBar();
   } catch(e) {
     document.getElementById('catalogList').textContent = '載入失敗：' + e.message;
   }
@@ -528,6 +551,24 @@ function changeQty(sku, delta){
   CART[sku] = next;
   const span = document.getElementById('qty-' + sku);
   if (span) span.textContent = next;
+  updateCartBar();
+}
+
+function updateCartBar(){
+  const bar = document.getElementById('cartBar');
+  if (!bar) return;
+  const skus = Object.keys(CART).filter(sku => CART[sku] > 0);
+  const count = skus.reduce((sum, sku) => sum + CART[sku], 0);
+  const amount = skus.reduce((sum, sku) => {
+    const p = PRODUCTS.find(x => x.sku === sku);
+    return sum + (p ? p.price * CART[sku] : 0);
+  }, 0);
+  document.getElementById('cbCount').textContent = count;
+  document.getElementById('cbAmount').textContent = amount;
+  const shouldShow = count > 0 && document.getElementById('catalogPane').style.display !== 'none'
+    && document.getElementById('mainScreen').style.display !== 'none';
+  bar.classList.toggle('show', shouldShow);
+  document.body.classList.toggle('has-cart-bar', shouldShow);
 }
 
 async function submitCart(){
@@ -543,6 +584,7 @@ async function submitCart(){
     alert('訂購單已送出！');
     CART = {};
     loadCatalog();
+    updateCartBar();
     switchTab('orders');
   } catch(e) {
     alert('送出失敗：' + e.message);
