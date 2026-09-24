@@ -87,7 +87,9 @@
   .chip.active{background:var(--leaf-dark);border-color:var(--leaf-dark);color:#FBF8EF;}
 
   .product-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
-  .product-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(75,93,69,.05);display:flex;flex-direction:column;}
+  .product-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(75,93,69,.05);display:flex;flex-direction:column;transition:border-color .15s,box-shadow .15s;}
+  .product-card.picked{border-color:var(--leaf-dark);box-shadow:0 0 0 1px var(--leaf-dark),0 2px 10px rgba(75,93,69,.1);}
+  .product-card .picked-flag{position:absolute;bottom:6px;left:6px;background:var(--leaf-dark);color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;letter-spacing:.3px;}
   .product-card .thumb-wrap{position:relative;width:100%;aspect-ratio:1/1;background:var(--leaf-tint);overflow:hidden;}
   .product-card .thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
   .product-card .thumb-wrap .low-flag{position:absolute;top:6px;left:6px;background:var(--rose-dark);color:#fff;font-size:10.5px;padding:2px 7px;border-radius:20px;letter-spacing:.3px;}
@@ -116,7 +118,9 @@
   .cat-nav{display:flex;gap:8px;overflow-x:auto;margin-top:14px;padding:8px 0;-ms-overflow-style:none;scrollbar-width:none;
     position:sticky;top:0;z-index:5;background:var(--surface);box-shadow:0 4px 6px -4px rgba(0,0,0,.06);}
   .cat-nav::-webkit-scrollbar{display:none;}
-  .cat-nav .cat-item{flex-shrink:0;padding:7px 15px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-soft);cursor:pointer;font-weight:600;letter-spacing:.5px;white-space:nowrap;}
+  .cat-nav .cat-item{position:relative;flex-shrink:0;padding:7px 15px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-soft);cursor:pointer;font-weight:600;letter-spacing:.5px;white-space:nowrap;}
+  .cat-nav .cat-item .cat-dot{position:absolute;top:2px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--rose-dark);border:1.5px solid var(--surface);}
+  .cat-nav .cat-item.active .cat-dot{background:var(--gold);border-color:var(--leaf-dark);}
   .cat-nav .cat-item.active{background:var(--leaf-dark);border-color:var(--leaf-dark);color:#FBF8EF;}
 
   .cat-section{margin-top:22px;}
@@ -474,12 +478,19 @@ async function loadCatalog(){
   }
 }
 
+function catHasPicked(zh){
+  return PRODUCTS.some(p => (CART[p.sku] || 0) > 0 && getCategory(p.sku).zh === zh);
+}
+
 function renderCats(){
   const box = document.getElementById('catalogCats');
   if (!box) return;
   const present = new Set(PRODUCTS.map(p => getCategory(p.sku).zh));
   const cats = ['全部', ...CATEGORY_RULES.map(r => r.zh).filter(zh => present.has(zh)), ...(present.has(OTHER_CAT.zh) ? [OTHER_CAT.zh] : [])];
-  box.innerHTML = cats.map(c => `<div class="cat-item ${c === ACTIVE_CAT ? 'active' : ''}" onclick="setCat('${c}')">${c}</div>`).join('');
+  box.innerHTML = cats.map(c => {
+    const picked = c !== '全部' && catHasPicked(c);
+    return `<div class="cat-item ${c === ACTIVE_CAT ? 'active' : ''}" onclick="setCat('${c}')">${c}${picked ? '<span class="cat-dot"></span>' : ''}</div>`;
+  }).join('');
 }
 
 function setCat(c){
@@ -489,12 +500,14 @@ function setCat(c){
 }
 
 function productCardHtml(p){
+  const picked = (CART[p.sku] || 0) > 0;
   return `
-    <div class="product-card">
+    <div class="product-card ${picked ? 'picked' : ''}" id="card-${p.sku}">
       <div class="thumb-wrap">
         <img src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
         ${p.stock < p.safetyStock ? '<div class="low-flag">庫存偏低</div>' : ''}
         ${p.tag ? `<div class="tag-flag">${p.tag}</div>` : ''}
+        ${picked ? '<div class="picked-flag" id="flag-' + p.sku + '">已選購</div>' : ''}
       </div>
       <div class="body">
         <div class="p-name">${p.name}</div>
@@ -548,9 +561,25 @@ function renderCatalog(){
 function changeQty(sku, delta){
   const cur = CART[sku] || 0;
   const next = Math.max(0, cur + delta);
+  const wasPicked = cur > 0;
+  const isPicked = next > 0;
   CART[sku] = next;
   const span = document.getElementById('qty-' + sku);
   if (span) span.textContent = next;
+  if (wasPicked !== isPicked) {
+    const card = document.getElementById('card-' + sku);
+    if (card) {
+      card.classList.toggle('picked', isPicked);
+      const thumb = card.querySelector('.thumb-wrap');
+      const existingFlag = document.getElementById('flag-' + sku);
+      if (isPicked && !existingFlag && thumb) {
+        thumb.insertAdjacentHTML('beforeend', `<div class="picked-flag" id="flag-${sku}">已選購</div>`);
+      } else if (!isPicked && existingFlag) {
+        existingFlag.remove();
+      }
+    }
+    renderCats();
+  }
   updateCartBar();
 }
 
