@@ -180,6 +180,22 @@
 
   .retry-btn{margin-left:8px;}
   .items-total{display:flex;justify-content:space-between;padding-top:8px;margin-top:4px;border-top:1px solid var(--line);font-weight:700;font-size:13px;color:var(--leaf-dark);}
+
+  .toast-wrap{position:fixed;left:0;right:0;bottom:18px;z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
+  .toast{background:var(--leaf-dark);color:#FBF8EF;padding:10px 18px;border-radius:24px;font-size:12.5px;box-shadow:0 6px 16px rgba(0,0,0,.18);opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease;max-width:88vw;text-align:center;}
+  .toast.error{background:#B23A48;}
+  .toast.show{opacity:1;transform:translateY(0);}
+
+  .tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:5px;border-radius:20px;background:#B23A48;color:#fff;font-size:10px;font-weight:700;vertical-align:middle;}
+
+  .empty-state{padding:30px 10px;text-align:center;}
+  .empty-state .es-icon{font-size:24px;color:var(--gold);margin-bottom:8px;}
+  .empty-state .es-text{font-size:12.5px;color:var(--ink-soft);}
+
+  .stock-modal-input{display:flex;align-items:center;gap:10px;margin:14px 0 6px;}
+  .stock-modal-input input[type=number]{width:90px;text-align:center;}
+  .stock-modal-actions{display:flex;gap:8px;margin-top:14px;}
+  .stock-modal-actions button{flex:1;}
   .skel-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
   .skel-card .skel-thumb{aspect-ratio:1/1;}
   .skel-card .skel-body{padding:9px 10px 11px;}
@@ -303,9 +319,9 @@
     </div>
 
     <div style="display:flex;gap:4px;margin-top:18px;">
-      <div class="tab active" id="tabAdminOrdersBtn" onclick="switchAdminTab('orders')">訂單管理</div>
+      <div class="tab active" id="tabAdminOrdersBtn" onclick="switchAdminTab('orders')">訂單管理<span class="tab-badge" id="ordersTabBadge" style="display:none;"></span></div>
       <div class="tab inactive" id="tabAdminBatchBtn" onclick="switchAdminTab('batch')">批次總覽</div>
-      <div class="tab inactive" id="tabAdminShopsBtn" onclick="switchAdminTab('shops')">花商管理</div>
+      <div class="tab inactive" id="tabAdminShopsBtn" onclick="switchAdminTab('shops')">花商管理<span class="tab-badge" id="shopsTabBadge" style="display:none;"></span></div>
       <div class="tab inactive" id="tabAdminStockBtn" onclick="switchAdminTab('stock')">庫存管理</div>
       <div class="tab inactive" id="tabAdminPromoBtn" onclick="switchAdminTab('promo')">行銷通知</div>
     </div>
@@ -319,6 +335,7 @@
         </div>
       </div>
       <div class="chip-row" id="adminOrdersFilterChips" style="margin-top:10px;"></div>
+      <div class="chip-row" id="adminOrdersDateChips" style="margin-top:6px;"></div>
       <div id="adminOrdersList" class="muted" style="margin-top:10px;">載入中...</div>
     </div>
 
@@ -377,6 +394,25 @@
 </div>
 
 <script>
+function showToast(message, type){
+  let wrap = document.getElementById('toastWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'toastWrap';
+    wrap.className = 'toast-wrap';
+    document.body.appendChild(wrap);
+  }
+  const el = document.createElement('div');
+  el.className = 'toast' + (type === 'error' ? ' error' : '');
+  el.textContent = message;
+  wrap.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 2600);
+}
+
 function toggleSearchClear(inputId, clearBtnId){
   const input = document.getElementById(inputId);
   const btn = document.getElementById(clearBtnId);
@@ -391,6 +427,10 @@ function clearSearch(inputId, rerenderFn){
   toggleSearchClear(inputId, inputId + 'Clear');
   if (typeof rerenderFn === 'function') rerenderFn();
   input.focus();
+}
+
+function emptyStateHtml(icon, text){
+  return `<div class="empty-state"><div class="es-icon">${icon}</div><div class="es-text">${text}</div></div>`;
 }
 
 function skeletonCards(n){
@@ -461,6 +501,10 @@ function saveAdminSession(){
   try { sessionStorage.setItem('ff_admin', '1'); } catch(e){}
 }
 
+function rememberLoginId(id){
+  try { localStorage.setItem('ff_last_login_id', id); } catch(e){}
+}
+
 async function doLogin(){
   const id = document.getElementById('loginId').value.trim();
   const secret = document.getElementById('loginSecret').value.trim();
@@ -471,6 +515,7 @@ async function doLogin(){
     if (isAdmin) {
       IS_ADMIN = true;
       saveAdminSession();
+      rememberLoginId(id);
       enterAdminApp();
       return;
     }
@@ -482,6 +527,7 @@ async function doLogin(){
     if (!res.ok) { msg.textContent = res.message; return; }
     SHOP = res.shop;
     saveSession();
+    rememberLoginId(id);
     enterApp();
   } catch(e) {
     msg.textContent = '登入失敗：' + e.message;
@@ -553,6 +599,15 @@ function enterAdminApp(){
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminScreen').style.display = '';
   loadAdminOrders();
+  api('getAllShops', []).then(shops => {
+    ADMIN_SHOPS = shops;
+    const badge = document.getElementById('shopsTabBadge');
+    if (badge) {
+      const pending = shops.filter(s => s.status !== 'active').length;
+      if (pending > 0) { badge.textContent = pending; badge.style.display = ''; }
+      else { badge.style.display = 'none'; }
+    }
+  }).catch(() => {});
 }
 
 function switchTab(name){
@@ -670,14 +725,14 @@ function renderCatalog(){
     const matchesQuery = !q || (p.name && p.name.toLowerCase().includes(q)) || (p.origin && p.origin.toLowerCase().includes(q));
     return matchesQuery;
   });
-  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>'; return; }
+  if (filtered.length === 0) { el.innerHTML = emptyStateHtml('❧', '找不到符合的花材，換個關鍵字試試'); return; }
 
   if (ACTIVE_CAT !== '全部') {
     const inCat = filtered.filter(p => getCategory(p.sku).zh === ACTIVE_CAT);
     const sorted = inCat.slice().sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
     el.innerHTML = sorted.length
       ? '<div class="product-grid">' + sorted.map(productCardHtml).join('') + '</div>'
-      : '<div class="muted" style="padding:16px 0;text-align:center;">此分類目前無符合的花材</div>';
+      : emptyStateHtml('❧', '此分類目前沒有符合的花材');
     return;
   }
 
@@ -694,7 +749,7 @@ function renderCatalog(){
         <div class="product-grid">${items.map(productCardHtml).join('')}</div>
       </div>`;
   }).join('');
-  el.innerHTML = sections || '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>';
+  el.innerHTML = sections || emptyStateHtml('❧', '找不到符合的花材，換個關鍵字試試');
 }
 
 function changeQty(sku, delta){
@@ -846,7 +901,7 @@ function setOrderFilter(f){
 function renderOrders(){
   const el = document.getElementById('ordersList');
   if (!el) return;
-  if (SHOP_ORDERS.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
+  if (SHOP_ORDERS.length === 0) { el.innerHTML = emptyStateHtml('◆', '目前還沒有任何訂單，快去「訂花」挑選花材吧'); return; }
   const filtered = SHOP_ORDERS.filter(o => {
     if (SHOP_ORDER_FILTER === '全部') return true;
     if (SHOP_ORDER_FILTER === '待付款') return o.paymentStatus !== '已收款' && !o.transferLast5 && o.fulfillStatus !== '已取消';
@@ -855,7 +910,7 @@ function renderOrders(){
     if (SHOP_ORDER_FILTER === '已取消') return o.fulfillStatus === '已取消';
     return true;
   });
-  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">此篩選下沒有訂單</div>'; return; }
+  if (filtered.length === 0) { el.innerHTML = emptyStateHtml('◆', '這個篩選條件下目前沒有訂單'); return; }
   el.innerHTML = filtered.map(o => {
     const paid = o.paymentStatus === '已收款';
     const cancelled = o.fulfillStatus === '已取消';
@@ -893,10 +948,10 @@ async function doReportPayment(orderId){
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '送出中...'; }
   try {
     await api('reportPayment', [SHOP.shopId, orderId, val]);
-    alert('已回報付款，待管理員確認');
+    showToast('已回報付款，待管理員確認');
     loadOrders();
   } catch(e) {
-    alert('操作失敗：' + e.message);
+    showToast('操作失敗：' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
 }
@@ -943,10 +998,10 @@ async function doCancel(orderId){
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '處理中...'; }
   try {
     const res = await api('cancelOrder', [SHOP.shopId, orderId]);
-    alert(res.message || '已送出');
+    showToast(res.message || '已送出');
     loadOrders();
   } catch(e) {
-    alert('操作失敗：' + e.message);
+    showToast('操作失敗：' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
 }
@@ -958,6 +1013,8 @@ const ADMIN_FULFILL_FLOW = ['待採購', '已跟荷蘭下單', '運送檢疫中'
 let ADMIN_ORDERS = [];
 let ADMIN_ORDER_FILTER = '全部';
 const ADMIN_ORDER_FILTERS = ['全部', '待確認', '待付款', '已收款', '已取消'];
+let ADMIN_ORDER_DATE_FILTER = '全部時間';
+const ADMIN_ORDER_DATE_FILTERS = ['全部時間', '本週', '本月'];
 
 async function loadAdminOrders(){
   const el = document.getElementById('adminOrdersList');
@@ -965,10 +1022,38 @@ async function loadAdminOrders(){
   try {
     ADMIN_ORDERS = await api('getAllOrders', []);
     renderAdminOrderFilterChips();
+    renderAdminOrderDateChips();
     renderAdminOrders();
   } catch(e) {
     el.innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadAdminOrders()">重試</button>`;
   }
+}
+
+function renderAdminOrderDateChips(){
+  const box = document.getElementById('adminOrdersDateChips');
+  if (!box) return;
+  box.innerHTML = ADMIN_ORDER_DATE_FILTERS.map(f => `<div class="chip ${f === ADMIN_ORDER_DATE_FILTER ? 'active' : ''}" onclick="setAdminOrderDateFilter('${f}')">${f}</div>`).join('');
+}
+
+function setAdminOrderDateFilter(f){
+  ADMIN_ORDER_DATE_FILTER = f;
+  renderAdminOrderDateChips();
+  renderAdminOrders();
+}
+
+function inDateScope(dateStr, scope){
+  if (scope === '全部時間' || !dateStr) return true;
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (scope === '本週') {
+    const day = (now.getDay() + 6) % 7; // 週一 = 0
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+    return d >= weekStart;
+  }
+  if (scope === '本月') {
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }
+  return true;
 }
 
 function renderAdminOrderFilterChips(){
@@ -983,6 +1068,11 @@ function renderAdminOrderFilterChips(){
     '已取消': ADMIN_ORDERS.filter(o => o.fulfillStatus === '已取消').length,
   };
   box.innerHTML = ADMIN_ORDER_FILTERS.map(f => `<div class="chip ${f === ADMIN_ORDER_FILTER ? 'active' : ''}" onclick="setAdminOrderFilter('${f}')">${f}（${counts[f]}）</div>`).join('');
+  const badge = document.getElementById('ordersTabBadge');
+  if (badge) {
+    if (counts['待確認'] > 0) { badge.textContent = counts['待確認']; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
 }
 
 function setAdminOrderFilter(f){
@@ -999,6 +1089,7 @@ function renderAdminOrders(){
   let filtered = ADMIN_ORDERS.filter(o => {
     const matchesQuery = !q || (o.orderId && o.orderId.toLowerCase().includes(q)) || (String(o.shopId || '').toLowerCase().includes(q));
     if (!matchesQuery) return false;
+    if (!inDateScope(o.createdAt, ADMIN_ORDER_DATE_FILTER)) return false;
     if (ADMIN_ORDER_FILTER === '全部') return true;
     if (ADMIN_ORDER_FILTER === '待確認') return needsAction(o);
     if (ADMIN_ORDER_FILTER === '待付款') return o.paymentStatus !== '已收款' && !o.transferLast5 && o.fulfillStatus !== '已取消';
@@ -1006,7 +1097,7 @@ function renderAdminOrders(){
     if (ADMIN_ORDER_FILTER === '已取消') return o.fulfillStatus === '已取消';
     return true;
   });
-  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的訂單</div>'; return; }
+  if (filtered.length === 0) { el.innerHTML = emptyStateHtml('◆', '找不到符合條件的訂單'); return; }
   const sorted = filtered.slice().sort((a, b) => (needsAction(b) ? 1 : 0) - (needsAction(a) ? 1 : 0));
   el.innerHTML = sorted.map(o => {
     const paid = o.paymentStatus === '已收款';
@@ -1048,9 +1139,9 @@ async function adminConfirmPay(orderId){
   if (!confirm('確認已收到此筆款項？系統將發送確認信給花商。')) return;
   const btn = event && event.target;
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '處理中...'; }
-  try { await api('adminConfirmPayment', [orderId]); loadAdminOrders(); }
+  try { await api('adminConfirmPayment', [orderId]); showToast('已確認款項，通知信已發送'); loadAdminOrders(); }
   catch(e) {
-    alert('操作失敗：' + e.message);
+    showToast('操作失敗：' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
 }
@@ -1058,9 +1149,9 @@ async function adminConfirmPay(orderId){
 async function adminNextStatus(orderId, newStatus){
   const btn = event && event.target;
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '處理中...'; }
-  try { await api('adminSetFulfillStatus', [orderId, newStatus]); loadAdminOrders(); }
+  try { await api('adminSetFulfillStatus', [orderId, newStatus]); showToast(`狀態已更新為「${newStatus}」`); loadAdminOrders(); }
   catch(e) {
-    alert('操作失敗：' + e.message);
+    showToast('操作失敗：' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
 }
@@ -1136,6 +1227,11 @@ function renderAdminShopFilterChips(){
     '待審核': ADMIN_SHOPS.filter(s => s.status !== 'active').length,
   };
   box.innerHTML = ADMIN_SHOP_FILTERS.map(f => `<div class="chip ${f === ADMIN_SHOP_FILTER ? 'active' : ''}" onclick="setAdminShopFilter('${f}')">${f}（${counts[f]}）</div>`).join('');
+  const badge = document.getElementById('shopsTabBadge');
+  if (badge) {
+    if (counts['待審核'] > 0) { badge.textContent = counts['待審核']; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+  }
 }
 
 function setAdminShopFilter(f){
@@ -1156,7 +1252,7 @@ function renderAdminShops(){
     if (ADMIN_SHOP_FILTER === '待審核') return s.status !== 'active';
     return true;
   });
-  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花商</div>'; return; }
+  if (filtered.length === 0) { el.innerHTML = emptyStateHtml('✈', '找不到符合條件的花商'); return; }
   el.innerHTML = filtered.map(s => `
     <div class="row" style="display:block;">
       <div style="display:flex;justify-content:space-between;">
@@ -1172,8 +1268,8 @@ function renderAdminShops(){
 }
 
 async function adminToggleShop(shopId, newStatus){
-  try { await api('toggleShopStatus', [shopId, newStatus]); loadAdminShops(); }
-  catch(e) { alert('操作失敗：' + e.message); }
+  try { await api('toggleShopStatus', [shopId, newStatus]); showToast(newStatus === 'active' ? '花商已啟用' : '花商已停用'); loadAdminShops(); }
+  catch(e) { showToast('操作失敗：' + e.message, 'error'); }
 }
 
 let ADMIN_STOCK = [];
@@ -1194,7 +1290,7 @@ function renderAdminStock(){
   if (!el) return;
   const q = (document.getElementById('adminStockSearch')?.value || '').trim().toLowerCase();
   const filtered = ADMIN_STOCK.filter(p => !q || (p.name && p.name.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q)));
-  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>'; return; }
+  if (filtered.length === 0) { el.innerHTML = emptyStateHtml('❧', '找不到符合的花材'); return; }
   el.innerHTML = filtered.map(p => `
     <div class="row">
       <div class="prod-info">
@@ -1204,15 +1300,51 @@ function renderAdminStock(){
           <div class="muted">庫存：${p.stock}　安全庫存：${p.safetyStock}${p.stock < p.safetyStock ? ' · <span class="badge-low">偏低</span>' : ''}</div>
         </div>
       </div>
-      <button class="tiny" onclick="adminUpdateStock('${p.sku}',${p.stock})">調整庫存</button>
+      <button class="tiny" onclick="openStockModal('${p.sku}',${p.stock},'${(p.name||'').replace(/'/g,"\\'")}')">調整庫存</button>
     </div>`).join('');
 }
 
-async function adminUpdateStock(sku, current){
-  const val = prompt('輸入新庫存數量：', current);
-  if (val === null || val.trim() === '') return;
-  try { await api('updateStock', [sku, Number(val)]); loadAdminStock(); }
-  catch(e) { alert('操作失敗：' + e.message); }
+function openStockModal(sku, current, name){
+  const html = `
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target.id==='modalOverlay')closeModal()">
+      <div class="modal-card">
+        <h3>調整庫存</h3>
+        <div class="modal-sub">${name}</div>
+        <input type="range" id="stockRange" min="0" max="${Math.max(current * 3, current + 50, 100)}" value="${current}" style="width:100%;" oninput="document.getElementById('stockNumberInput').value=this.value;">
+        <div class="stock-modal-input">
+          <button class="qty-btn" onclick="stockNudge(-1)">−</button>
+          <input type="number" id="stockNumberInput" value="${current}" min="0" oninput="document.getElementById('stockRange').value=this.value;">
+          <button class="qty-btn" onclick="stockNudge(1)">＋</button>
+        </div>
+        <div class="stock-modal-actions">
+          <button class="secondary" onclick="closeModal()">取消</button>
+          <button class="primary" onclick="saveStockModal('${sku}')">儲存</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function stockNudge(delta){
+  const input = document.getElementById('stockNumberInput');
+  if (!input) return;
+  const next = Math.max(0, Number(input.value || 0) + delta);
+  input.value = next;
+  const range = document.getElementById('stockRange');
+  if (range) range.value = next;
+}
+
+async function saveStockModal(sku){
+  const val = document.getElementById('stockNumberInput').value;
+  if (val === '' || Number(val) < 0) { showToast('請輸入有效的庫存數量', 'error'); return; }
+  try {
+    await api('updateStock', [sku, Number(val)]);
+    closeModal();
+    showToast('庫存已更新');
+    loadAdminStock();
+  } catch(e) {
+    showToast('操作失敗：' + e.message, 'error');
+  }
 }
 
 async function loadAdminPromoShops(){
@@ -1240,9 +1372,9 @@ async function sendPromo(){
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '發送中...'; }
   try {
     const res = await api('sendPromoEmail', [ids, subject, message]);
-    alert('已發送給 ' + res.sent.length + ' 家花商');
+    showToast('已發送給 ' + res.sent.length + ' 家花商');
   } catch(e) {
-    alert('發送失敗：' + e.message);
+    showToast('發送失敗：' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
@@ -1251,6 +1383,17 @@ async function sendPromo(){
 loadSession();
 if (IS_ADMIN) { enterAdminApp(); }
 else if (SHOP) { enterApp(); }
+else {
+  try {
+    const lastId = localStorage.getItem('ff_last_login_id');
+    if (lastId) {
+      const idInput = document.getElementById('loginId');
+      if (idInput) idInput.value = lastId;
+      const secretInput = document.getElementById('loginSecret');
+      if (secretInput) secretInput.focus();
+    }
+  } catch(e) {}
+}
 </script>
 </body>
 </html>
