@@ -104,6 +104,27 @@
   .line-cs .ic{width:30px;height:30px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:1px solid var(--gold);color:var(--gold);}
   .line-cs .txt{font-size:12.5px;color:var(--ink-soft);line-height:1.4;}
   .line-cs .txt b{color:var(--leaf-dark);}
+
+  .info-nav{display:flex;justify-content:center;gap:26px;margin-top:16px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .info-nav a{font-family:var(--font-serif);font-size:12.5px;letter-spacing:2px;color:var(--leaf-dark);text-decoration:none;font-weight:600;cursor:pointer;}
+  .info-nav a:hover{color:var(--gold);}
+
+  .cat-nav{display:flex;gap:8px;overflow-x:auto;margin-top:14px;padding-bottom:2px;-ms-overflow-style:none;scrollbar-width:none;}
+  .cat-nav::-webkit-scrollbar{display:none;}
+  .cat-nav .cat-item{flex-shrink:0;padding:7px 15px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-soft);cursor:pointer;font-weight:600;letter-spacing:.5px;white-space:nowrap;}
+  .cat-nav .cat-item.active{background:var(--leaf-dark);border-color:var(--leaf-dark);color:#FBF8EF;}
+
+  .cat-section{margin-top:22px;}
+  .cat-section .cat-title{display:flex;align-items:baseline;gap:8px;margin-bottom:2px;}
+  .cat-section .cat-title .zh{font-family:var(--font-serif);font-size:15.5px;font-weight:700;color:var(--leaf-dark);letter-spacing:1px;}
+  .cat-section .cat-title .en{font-family:var(--font-display);font-style:italic;font-size:11.5px;color:var(--gold);letter-spacing:1px;}
+  .cat-section .cat-count{font-size:11px;color:var(--ink-soft);}
+  .cat-divider{height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin:6px 0 12px;}
+
+  .info-block{margin-top:16px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:4px;display:none;}
+  .info-block.open{display:block;}
+  .info-block h3{font-family:var(--font-serif);font-size:14px;color:var(--leaf-dark);margin:0 0 8px;letter-spacing:1px;}
+  .info-block p{font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin:0 0 6px;}
 </style>
 </head>
 <body>
@@ -156,6 +177,28 @@
       <div class="txt"><b>官方 LINE 客服</b>　申請中，即將開放線上詢問到貨進度與花材建議，敬請期待。</div>
     </div>
 
+    <div class="info-nav">
+      <a onclick="toggleInfo('info-brand')">深綠情報所</a>
+      <a onclick="toggleInfo('info-howto')">購物須知</a>
+      <a onclick="toggleInfo('info-shipping')">配送說明</a>
+    </div>
+
+    <div class="info-block" id="info-brand">
+      <h3>深綠情報所</h3>
+      <p>艸．荷蘭花選 FlowerForce TW，是每週統一向荷蘭花市下單、代辦空運與檢疫通關的整合代購服務，讓花商不必自己處理跨境採購與物流的繁瑣環節。</p>
+      <p>我們持續更新產地選花心得、花材保鮮建議與當季推薦，敬請期待更多內容。</p>
+    </div>
+    <div class="info-block" id="info-howto">
+      <h3>購物須知</h3>
+      <p>每週會有固定截單時間，於截止前送出的訂單將併入本批次向荷蘭下單；送出訂購單後請於期限內完成轉帳，並於「我的訂單」回報帳號末五碼。</p>
+      <p>訂單金額為預估金額，實際到貨數量與品質若有落差，將由客服另行處理調整。</p>
+    </div>
+    <div class="info-block" id="info-shipping">
+      <h3>配送說明</h3>
+      <p>花材自荷蘭採購後，將統一空運來台並完成檢疫通關，再依批次進度配送至各花商，時程請參考「本批次訂購截止」與訂單狀態列。</p>
+      <p>配送進度可於「我的訂單」查看目前批次狀態（已跟荷蘭下單／運送檢疫中／到貨可配送等）。</p>
+    </div>
+
     <div style="display:flex;gap:4px;margin-top:18px;">
       <div class="tab active" id="tabCatalogBtn" onclick="switchTab('catalog')">訂花</div>
       <div class="tab inactive" id="tabOrdersBtn" onclick="switchTab('orders')">我的訂單</div>
@@ -166,7 +209,7 @@
       <div class="toolbar">
         <input id="catalogSearch" placeholder="搜尋花材名稱／產地" oninput="renderCatalog()">
       </div>
-      <div class="chip-row" id="catalogChips"></div>
+      <div class="cat-nav" id="catalogCats"></div>
       <div id="catalogList" class="muted">載入中...</div>
       <div style="margin-top:16px;text-align:right;">
         <button class="primary" onclick="submitCart()">送出訂購單</button>
@@ -238,6 +281,14 @@
 </div>
 
 <script>
+function toggleInfo(id){
+  const el = document.getElementById(id);
+  if (!el) return;
+  const wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.info-block.open').forEach(b => b.classList.remove('open'));
+  if (!wasOpen) { el.classList.add('open'); el.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+}
+
 const API_URL = 'https://script.google.com/macros/s/AKfycbyB-nSdCSbbm8Lm2CojEG5Rd8f5WMaxBENjXQUKEzpQg-SJV7SkT4R5dA2NeWyXAYwS/exec';
 
 async function api(fn, args){
@@ -356,43 +407,55 @@ function switchAdminTab(name){
   if (name === 'promo') loadAdminPromoShops();
 }
 
-let ACTIVE_ORIGIN = '全部';
+let ACTIVE_CAT = '全部';
+
+// SKU 開頭前綴 → 官網分類。找不到對應前綴時歸入「其他花材」。
+const CATEGORY_RULES = [
+  { prefix: 'R-',     zh: '玫瑰',       en: 'Rose' },
+  { prefix: 'L-',     zh: '香水百合',   en: 'Lily' },
+  { prefix: 'PAEO-',  zh: '牡丹',       en: 'Peony' },
+  { prefix: 'C-',     zh: '菊花',       en: 'Chrysanthemum' },
+  { prefix: 'EUS-',   zh: '桔梗',       en: 'Eustoma' },
+  { prefix: 'D-',     zh: '康乃馨',     en: 'Carnation' },
+  { prefix: 'HYDR-',  zh: '繡球花',     en: 'Hydrangea' },
+  { prefix: 'CALLA-', zh: '馬蹄蓮',     en: 'Calla Lily' },
+  { prefix: 'GLAD-',  zh: '劍蘭',       en: 'Gladiolus' },
+  { prefix: 'GYPS-',  zh: '滿天星',     en: 'Gypsophila' },
+  { prefix: 'ALSTR-', zh: '六出花',     en: 'Alstroemeria' },
+];
+const OTHER_CAT = { zh: '其他花材', en: 'Other' };
+
+function getCategory(sku){
+  const rule = CATEGORY_RULES.find(r => sku && sku.startsWith(r.prefix));
+  return rule || OTHER_CAT;
+}
 
 async function loadCatalog(){
   try {
     PRODUCTS = await api('getCatalog', []);
-    renderChips();
+    renderCats();
     renderCatalog();
   } catch(e) {
     document.getElementById('catalogList').textContent = '載入失敗：' + e.message;
   }
 }
 
-function renderChips(){
-  const box = document.getElementById('catalogChips');
+function renderCats(){
+  const box = document.getElementById('catalogCats');
   if (!box) return;
-  const origins = ['全部', ...Array.from(new Set(PRODUCTS.map(p => p.origin).filter(Boolean)))];
-  box.innerHTML = origins.map(o => `<div class="chip ${o === ACTIVE_ORIGIN ? 'active' : ''}" onclick="setOrigin('${o}')">${o}</div>`).join('');
+  const present = new Set(PRODUCTS.map(p => getCategory(p.sku).zh));
+  const cats = ['全部', ...CATEGORY_RULES.map(r => r.zh).filter(zh => present.has(zh)), ...(present.has(OTHER_CAT.zh) ? [OTHER_CAT.zh] : [])];
+  box.innerHTML = cats.map(c => `<div class="cat-item ${c === ACTIVE_CAT ? 'active' : ''}" onclick="setCat('${c}')">${c}</div>`).join('');
 }
 
-function setOrigin(o){
-  ACTIVE_ORIGIN = o;
-  renderChips();
+function setCat(c){
+  ACTIVE_CAT = c;
+  renderCats();
   renderCatalog();
 }
 
-function renderCatalog(){
-  const el = document.getElementById('catalogList');
-  if (!el) return;
-  const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
-  const filtered = PRODUCTS.filter(p => {
-    const matchesOrigin = ACTIVE_ORIGIN === '全部' || p.origin === ACTIVE_ORIGIN;
-    const matchesQuery = !q || (p.name && p.name.toLowerCase().includes(q)) || (p.origin && p.origin.toLowerCase().includes(q));
-    return matchesOrigin && matchesQuery;
-  });
-  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>'; return; }
-  const sorted = filtered.slice().sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
-  el.innerHTML = '<div class="product-grid">' + sorted.map(p => `
+function productCardHtml(p){
+  return `
     <div class="product-card">
       <div class="thumb-wrap">
         <img src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
@@ -410,7 +473,42 @@ function renderCatalog(){
           <button class="qty-btn" onclick="changeQty('${p.sku}',1)">＋</button>
         </div>
       </div>
-    </div>`).join('') + '</div>';
+    </div>`;
+}
+
+function renderCatalog(){
+  const el = document.getElementById('catalogList');
+  if (!el) return;
+  const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
+  const filtered = PRODUCTS.filter(p => {
+    const matchesQuery = !q || (p.name && p.name.toLowerCase().includes(q)) || (p.origin && p.origin.toLowerCase().includes(q));
+    return matchesQuery;
+  });
+  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>'; return; }
+
+  if (ACTIVE_CAT !== '全部') {
+    const inCat = filtered.filter(p => getCategory(p.sku).zh === ACTIVE_CAT);
+    const sorted = inCat.slice().sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
+    el.innerHTML = sorted.length
+      ? '<div class="product-grid">' + sorted.map(productCardHtml).join('') + '</div>'
+      : '<div class="muted" style="padding:16px 0;text-align:center;">此分類目前無符合的花材</div>';
+    return;
+  }
+
+  // 全部：依分類分區塊呈現
+  const order = [...CATEGORY_RULES, OTHER_CAT];
+  const sections = order.map(cat => {
+    const items = filtered.filter(p => getCategory(p.sku).zh === cat.zh)
+      .sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
+    if (items.length === 0) return '';
+    return `
+      <div class="cat-section">
+        <div class="cat-title"><span class="zh">${cat.zh}</span><span class="en">${cat.en}</span><span class="cat-count">（${items.length}）</span></div>
+        <div class="cat-divider"></div>
+        <div class="product-grid">${items.map(productCardHtml).join('')}</div>
+      </div>`;
+  }).join('');
+  el.innerHTML = sections || '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花材</div>';
 }
 
 function changeQty(sku, delta){
