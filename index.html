@@ -427,6 +427,8 @@ async function submitCart(){
     return { sku, name: p.name, qty: CART[sku], unitPrice: p.price };
   });
   if (items.length === 0) { alert('請先選擇要訂購的花材數量'); return; }
+  const btn = event && event.target;
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '送出中...'; }
   try {
     await api('submitOrder', [SHOP.shopId, items]);
     alert('訂購單已送出！');
@@ -435,6 +437,8 @@ async function submitCart(){
     switchTab('orders');
   } catch(e) {
     alert('送出失敗：' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
 }
 
@@ -475,7 +479,7 @@ async function loadOrders(){
         </div>` : ''}
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
-          ${!cancelled ? `<button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button>` : ''}
+          ${(o.fulfillStatus !== '已取消' && o.fulfillStatus !== '已完成') ? `<button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button>` : ''}
         </div>
         <div id="items-${o.orderId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
       </div>`;
@@ -488,11 +492,17 @@ async function loadOrders(){
 async function doReportPayment(orderId){
   const val = document.getElementById('last5-' + orderId).value.trim();
   if (!val) { alert('請輸入轉帳帳號末五碼'); return; }
+  if (!/^[0-9]{5}$/.test(val)) { alert('轉帳帳號末五碼需為 5 位數字'); return; }
+  const btn = event && event.target;
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '送出中...'; }
   try {
     await api('reportPayment', [SHOP.shopId, orderId, val]);
     alert('已回報付款，待管理員確認');
     loadOrders();
-  } catch(e) { alert('操作失敗：' + e.message); }
+  } catch(e) {
+    alert('操作失敗：' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
+  }
 }
 
 async function toggleOrderItems(orderId){
@@ -523,11 +533,16 @@ async function toggleOrderItems(orderId){
 
 async function doCancel(orderId){
   if (!confirm('確定要申請取消這筆訂單嗎？')) return;
+  const btn = event && event.target;
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '處理中...'; }
   try {
     const res = await api('cancelOrder', [SHOP.shopId, orderId]);
     alert(res.message || '已送出');
     loadOrders();
-  } catch(e) { alert('操作失敗：' + e.message); }
+  } catch(e) {
+    alert('操作失敗：' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
+  }
 }
 
 // ==== 管理後台 ====
@@ -540,11 +555,14 @@ async function loadAdminOrders(){
   try {
     const orders = await api('getAllOrders', []);
     if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
-    el.innerHTML = orders.map(o => {
+    const needsAction = o => o.paymentStatus !== '已收款' && o.transferLast5 && o.fulfillStatus !== '已取消';
+    const sorted = orders.slice().sort((a, b) => (needsAction(b) ? 1 : 0) - (needsAction(a) ? 1 : 0));
+    el.innerHTML = sorted.map(o => {
       const paid = o.paymentStatus === '已收款';
       const cancelled = o.fulfillStatus === '已取消';
+      const pendingConfirm = !paid && o.transferLast5 && !cancelled;
       let actions = '';
-      if (!paid && o.transferLast5 && !cancelled) {
+      if (pendingConfirm) {
         actions += `<button class="tiny" onclick="adminConfirmPay('${o.orderId}')">確認款項（末五碼 ${o.transferLast5}）</button> `;
       }
       if (paid && !cancelled) {
@@ -556,9 +574,9 @@ async function loadAdminOrders(){
         actions += ` <span class="muted">備註：${o.note}</span>`;
       }
       return `
-      <div class="row" style="display:block;">
+      <div class="row" style="display:block;${pendingConfirm ? 'border-left:3px solid var(--rose-dark, #b23a48);background:rgba(178,58,72,0.04);' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div style="font-weight:700;">${o.orderId}　<span class="muted">${o.shopId || ''}</span></div>
+          <div style="font-weight:700;">${o.orderId}${pendingConfirm ? ' <span style="font-weight:700;font-size:11px;color:var(--rose-dark, #b23a48);">待確認</span>' : ''}　<span class="muted">${o.shopId || ''}</span></div>
           <div style="display:flex;gap:6px;">
             <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
             <div class="badge-wait">${o.fulfillStatus || '待採購'}</div>
@@ -580,13 +598,23 @@ async function loadAdminOrders(){
 
 async function adminConfirmPay(orderId){
   if (!confirm('確認已收到此筆款項？系統將發送確認信給花商。')) return;
+  const btn = event && event.target;
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '處理中...'; }
   try { await api('adminConfirmPayment', [orderId]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
+  catch(e) {
+    alert('操作失敗：' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
+  }
 }
 
 async function adminNextStatus(orderId, newStatus){
+  const btn = event && event.target;
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '處理中...'; }
   try { await api('adminSetFulfillStatus', [orderId, newStatus]); loadAdminOrders(); }
-  catch(e) { alert('操作失敗：' + e.message); }
+  catch(e) {
+    alert('操作失敗：' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
+  }
 }
 
 async function loadAdminBatch(){
@@ -687,10 +715,16 @@ async function sendPromo(){
   const message = document.getElementById('promoMessage').value.trim();
   if (ids.length === 0) { alert('請至少勾選一家花商'); return; }
   if (!subject || !message) { alert('請填寫主旨與內容'); return; }
+  const btn = event && event.target;
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '發送中...'; }
   try {
     const res = await api('sendPromoEmail', [ids, subject, message]);
     alert('已發送給 ' + res.sent.length + ' 家花商');
-  } catch(e) { alert('發送失敗：' + e.message); }
+  } catch(e) {
+    alert('發送失敗：' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
+  }
 }
 
 loadSession();
