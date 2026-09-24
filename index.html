@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>艸｜荷蘭花選 FlowerForce</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAiIGZpbGw9IiNGRkZERjgiIHN0cm9rZT0iI0IwOEEzRSIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPHRleHQgeD0iMzIiIHk9IjQ0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iR2VvcmdpYSwgJ05vdG8gU2VyaWYgVEMnLCBzZXJpZiIgZm9udC1zaXplPSIzNCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzMzNDIyRiI+6Im4PC90ZXh0Pgo8L3N2Zz4K">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRkZGREY4Ii8+CiAgPHRleHQgeD0iMzIiIHk9IjQ0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iR2VvcmdpYSwgJ05vdG8gU2VyaWYgVEMnLCBzZXJpZiIgZm9udC1zaXplPSIzNCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzMzNDIyRiI+6Im4PC90ZXh0Pgo8L3N2Zz4K">
+<meta name="theme-color" content="#4B5D45">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="艸．荷蘭花選">
+<link rel="manifest" href='data:application/manifest+json,{"name":"艸．荷蘭花選 FlowerForce","short_name":"艸","start_url":".","display":"standalone","background_color":"%23FFFDF8","theme_color":"%234B5D45"}'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Playfair+Display:ital,wght@0,600;1,500&display=swap" rel="stylesheet">
 <style>
@@ -196,6 +202,19 @@
   .stock-modal-input input[type=number]{width:90px;text-align:center;}
   .stock-modal-actions{display:flex;gap:8px;margin-top:14px;}
   .stock-modal-actions button{flex:1;}
+
+  .top-fab{position:fixed;right:16px;bottom:78px;width:40px;height:40px;border-radius:50%;background:var(--leaf-dark);color:#FBF8EF;border:none;
+    display:none;align-items:center;justify-content:center;font-size:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);cursor:pointer;z-index:15;}
+  .top-fab.show{display:flex;}
+  body.has-cart-bar .top-fab{bottom:78px;}
+  body:not(.has-cart-bar) .top-fab{bottom:18px;}
+
+  .lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:70;padding:24px;cursor:zoom-out;}
+  .lightbox-overlay img{max-width:100%;max-height:100%;border-radius:6px;}
+
+  .sort-select{padding:7px 10px;border:1px solid var(--line);border-radius:20px;font-size:12.5px;color:var(--ink-soft);background:var(--surface);cursor:pointer;}
+
+  .copy-id{cursor:pointer;border-bottom:1px dashed var(--gold);}
   .skel-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
   .skel-card .skel-thumb{aspect-ratio:1/1;}
   .skel-card .skel-body{padding:9px 10px 11px;}
@@ -215,8 +234,8 @@
     <div style="font-family:var(--font-display);font-style:italic;color:var(--gold);font-size:13px;letter-spacing:2px;margin-top:2px;">HOLLAND FLOWER SELECT</div>
     <div class="muted" style="margin-top:2px;">荷蘭花選．B2B 訂花平台</div>
     <div class="divider-flourish">❦</div>
-    <div style="margin-bottom:10px;"><input id="loginId" placeholder="花商編號 / 管理者帳號"></div>
-    <div style="margin-bottom:14px;"><input id="loginSecret" type="password" placeholder="登記手機號碼 / 管理者密碼"></div>
+    <div style="margin-bottom:10px;"><input id="loginId" placeholder="花商編號 / 管理者帳號" onkeydown="if(event.key==='Enter')document.getElementById('loginSecret').focus();"></div>
+    <div style="margin-bottom:14px;"><input id="loginSecret" type="password" placeholder="登記手機號碼 / 管理者密碼" onkeydown="if(event.key==='Enter')doLogin();"></div>
     <button class="primary" style="width:100%;" onclick="doLogin()">登　入</button>
     <div id="loginMsg" class="muted" style="margin-top:10px;text-align:center;"></div>
   </div>
@@ -286,9 +305,14 @@
       <h2>目前可訂花材</h2>
       <div class="toolbar">
         <div class="search-wrap">
-          <input id="catalogSearch" placeholder="搜尋花材名稱／產地" oninput="renderCatalog(); toggleSearchClear('catalogSearch','catalogSearchClear');">
+          <input id="catalogSearch" placeholder="搜尋花材名稱／產地" oninput="debouncedRenderCatalog(); toggleSearchClear('catalogSearch','catalogSearchClear');">
           <button class="search-clear" id="catalogSearchClear" onclick="clearSearch('catalogSearch', renderCatalog)" aria-label="清除搜尋">✕</button>
         </div>
+        <select class="sort-select" id="catalogSort" onchange="renderCatalog()">
+          <option value="default">預設排序</option>
+          <option value="priceAsc">價格由低到高</option>
+          <option value="priceDesc">價格由高到低</option>
+        </select>
       </div>
       <div class="cat-nav" id="catalogCats"></div>
       <div id="catalogList" class="muted">載入中...</div>
@@ -391,6 +415,7 @@
     <button class="primary" onclick="submitCart()">送出訂購單</button>
   </div>
 </div>
+<button class="top-fab" id="topFab" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到頂部">▲</button>
 </div>
 
 <script>
@@ -411,6 +436,12 @@ function showToast(message, type){
     el.classList.remove('show');
     setTimeout(() => el.remove(), 300);
   }, 2600);
+}
+
+let _catalogDebounceTimer = null;
+function debouncedRenderCatalog(){
+  clearTimeout(_catalogDebounceTimer);
+  _catalogDebounceTimer = setTimeout(renderCatalog, 220);
 }
 
 function toggleSearchClear(inputId, clearBtnId){
@@ -693,11 +724,25 @@ function setCat(c){
   renderCatalog();
 }
 
+function openLightbox(url){
+  if (!url) return;
+  const html = `<div class="lightbox-overlay" id="lightboxOverlay" onclick="document.getElementById('lightboxOverlay').remove()"><img src="${url}"></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function sortProducts(list){
+  const mode = document.getElementById('catalogSort')?.value || 'default';
+  const arr = list.slice();
+  if (mode === 'priceAsc') return arr.sort((a, b) => a.price - b.price);
+  if (mode === 'priceDesc') return arr.sort((a, b) => b.price - a.price);
+  return arr.sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
+}
+
 function productCardHtml(p){
   const picked = (CART[p.sku] || 0) > 0;
   return `
     <div class="product-card ${picked ? 'picked' : ''}" id="card-${p.sku}">
-      <div class="thumb-wrap">
+      <div class="thumb-wrap" onclick="openLightbox('${(p.imageUrl || '').replace(/'/g, "\\'")}')" style="cursor:zoom-in;">
         <img src="${p.imageUrl || ''}" loading="lazy" onerror="this.style.visibility='hidden'" alt="${p.name}">
         ${p.stock < p.safetyStock ? '<div class="low-flag">庫存偏低</div>' : ''}
         ${p.tag ? `<div class="tag-flag">${p.tag}</div>` : ''}
@@ -729,7 +774,7 @@ function renderCatalog(){
 
   if (ACTIVE_CAT !== '全部') {
     const inCat = filtered.filter(p => getCategory(p.sku).zh === ACTIVE_CAT);
-    const sorted = inCat.slice().sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
+    const sorted = sortProducts(inCat);
     el.innerHTML = sorted.length
       ? '<div class="product-grid">' + sorted.map(productCardHtml).join('') + '</div>'
       : emptyStateHtml('❧', '此分類目前沒有符合的花材');
@@ -739,8 +784,7 @@ function renderCatalog(){
   // 全部：依分類分區塊呈現
   const order = [...CATEGORY_RULES, OTHER_CAT];
   const sections = order.map(cat => {
-    const items = filtered.filter(p => getCategory(p.sku).zh === cat.zh)
-      .sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0));
+    const items = sortProducts(filtered.filter(p => getCategory(p.sku).zh === cat.zh));
     if (items.length === 0) return '';
     return `
       <div class="cat-section">
@@ -917,7 +961,7 @@ function renderOrders(){
     return `
     <div class="row" style="display:block;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-weight:700;">${o.orderId}</div>
+        <div class="copy-id" style="font-weight:700;" onclick="copyToClipboard('${o.orderId}','訂單編號')">${o.orderId}</div>
         <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
       </div>
       <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
@@ -1118,7 +1162,7 @@ function renderAdminOrders(){
     return `
     <div class="row" style="display:block;${pendingConfirm ? 'border-left:3px solid var(--rose-dark, #b23a48);background:rgba(178,58,72,0.04);' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-weight:700;">${o.orderId}${pendingConfirm ? ' <span style="font-weight:700;font-size:11px;color:var(--rose-dark, #b23a48);">待確認</span>' : ''}　<span class="muted">${o.shopId || ''}</span></div>
+        <div style="font-weight:700;"><span class="copy-id" onclick="copyToClipboard('${o.orderId}','訂單編號')">${o.orderId}</span>${pendingConfirm ? ' <span style="font-weight:700;font-size:11px;color:var(--rose-dark, #b23a48);">待確認</span>' : ''}　<span class="muted">${o.shopId || ''}</span></div>
         <div style="display:flex;gap:6px;">
           <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
           <div class="badge-wait">${o.fulfillStatus || '待採購'}</div>
@@ -1378,6 +1422,19 @@ async function sendPromo(){
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = btn.dataset.origText; }
   }
+}
+
+window.addEventListener('scroll', () => {
+  const fab = document.getElementById('topFab');
+  if (!fab) return;
+  fab.classList.toggle('show', window.scrollY > 400);
+});
+
+function copyToClipboard(text, label){
+  if (!navigator.clipboard) { showToast('此瀏覽器不支援複製'); return; }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast(`已複製${label || ''}：${text}`);
+  }).catch(() => showToast('複製失敗', 'error'));
 }
 
 loadSession();
