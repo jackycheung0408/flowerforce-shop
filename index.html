@@ -391,6 +391,7 @@ function switchTab(name){
   document.getElementById('tabCatalogBtn').className = 'tab ' + (isCatalog ? 'active' : 'inactive');
   document.getElementById('tabOrdersBtn').className = 'tab ' + (isCatalog ? 'inactive' : 'active');
   if (!isCatalog) loadOrders();
+  document.getElementById('tabCatalogBtn').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function switchAdminTab(name){
@@ -404,6 +405,7 @@ function switchAdminTab(name){
   if (name === 'batch') loadAdminBatch();
   if (name === 'shops') loadAdminShops();
   if (name === 'stock') loadAdminStock();
+  document.getElementById(btns[name]).scrollIntoView({behavior:'smooth', block:'start'});
   if (name === 'promo') loadAdminPromoShops();
 }
 
