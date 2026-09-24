@@ -159,6 +159,27 @@
 
   .skeleton{background:linear-gradient(90deg,var(--line-soft) 25%,var(--line) 37%,var(--line-soft) 63%);background-size:400% 100%;animation:skeleton-shine 1.4s ease infinite;border-radius:4px;}
   @keyframes skeleton-shine{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(51,66,47,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;}
+  .modal-card{background:var(--surface);border-radius:6px;max-width:400px;width:100%;padding:22px;max-height:82vh;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.18);}
+  .modal-card h3{font-family:var(--font-serif);font-size:16px;color:var(--leaf-dark);margin:0 0 4px;letter-spacing:1px;}
+  .modal-card .modal-sub{font-size:12px;color:var(--ink-soft);margin-bottom:12px;}
+  .modal-card .modal-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .modal-card .modal-total{display:flex;justify-content:space-between;padding-top:10px;margin-top:6px;font-weight:700;color:var(--leaf-dark);}
+  .modal-card .modal-next{margin-top:14px;font-size:12px;color:var(--ink-soft);line-height:1.7;background:var(--gold-tint);padding:10px 12px;border-radius:4px;}
+  .modal-card .modal-close{margin-top:16px;width:100%;}
+
+  @keyframes cart-pulse{0%{transform:scale(1);}35%{transform:scale(1.35);}100%{transform:scale(1);}}
+  .cb-count-pulse{animation:cart-pulse .38s ease;}
+
+  .fulfill-track{display:flex;align-items:center;gap:3px;margin-top:8px;}
+  .fulfill-track .ft-step{flex:1;height:4px;border-radius:2px;background:var(--line);}
+  .fulfill-track .ft-step.done{background:var(--leaf-dark);}
+  .fulfill-track .ft-step.cancelled{background:#B23A48;}
+  .fulfill-track-label{font-size:10.5px;color:var(--ink-soft);margin-top:4px;letter-spacing:.3px;}
+
+  .retry-btn{margin-left:8px;}
+  .items-total{display:flex;justify-content:space-between;padding-top:8px;margin-top:4px;border-top:1px solid var(--line);font-weight:700;font-size:13px;color:var(--leaf-dark);}
   .skel-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
   .skel-card .skel-thumb{aspect-ratio:1/1;}
   .skel-card .skel-body{padding:9px 10px 11px;}
@@ -262,7 +283,8 @@
 
     <div id="ordersPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
       <h2>我的訂單</h2>
-      <div id="ordersList" class="muted">載入中...</div>
+      <div class="chip-row" id="ordersFilterChips" style="margin-top:0;"></div>
+      <div id="ordersList" class="muted" style="margin-top:10px;">載入中...</div>
     </div>
 
     <div class="footer-mark"><div class="line"></div>艸　·　Holland Flower Select</div>
@@ -301,7 +323,10 @@
     </div>
 
     <div id="adminBatchPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
-      <h2>批次採購彙總</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;">批次採購彙總</h2>
+        <button class="tiny" onclick="exportBatchCSV()">匯出 CSV</button>
+      </div>
       <div id="adminBatchList" class="muted">載入中...</div>
     </div>
 
@@ -313,6 +338,7 @@
           <button class="search-clear" id="adminShopsSearchClear" onclick="clearSearch('adminShopsSearch', renderAdminShops)" aria-label="清除搜尋">✕</button>
         </div>
       </div>
+      <div class="chip-row" id="adminShopsFilterChips" style="margin-top:10px;"></div>
       <div id="adminShopsList" class="muted" style="margin-top:10px;">載入中...</div>
     </div>
 
@@ -587,7 +613,7 @@ async function loadCatalog(){
     renderCatalog();
     updateCartBar();
   } catch(e) {
-    document.getElementById('catalogList').textContent = '載入失敗：' + e.message;
+    document.getElementById('catalogList').innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadCatalog()">重試</button>`;
   }
 }
 
@@ -617,7 +643,7 @@ function productCardHtml(p){
   return `
     <div class="product-card ${picked ? 'picked' : ''}" id="card-${p.sku}">
       <div class="thumb-wrap">
-        <img src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
+        <img src="${p.imageUrl || ''}" loading="lazy" onerror="this.style.visibility='hidden'" alt="${p.name}">
         ${p.stock < p.safetyStock ? '<div class="low-flag">庫存偏低</div>' : ''}
         ${p.tag ? `<div class="tag-flag">${p.tag}</div>` : ''}
         ${picked ? '<div class="picked-flag" id="flag-' + p.sku + '">已選購</div>' : ''}
@@ -694,6 +720,14 @@ function changeQty(sku, delta){
     renderCats();
   }
   updateCartBar();
+  if (delta > 0) {
+    const cbCount = document.getElementById('cbCount');
+    if (cbCount) {
+      cbCount.classList.remove('cb-count-pulse');
+      void cbCount.offsetWidth;
+      cbCount.classList.add('cb-count-pulse');
+    }
+  }
 }
 
 function updateCartBar(){
@@ -713,21 +747,44 @@ function updateCartBar(){
   document.body.classList.toggle('has-cart-bar', shouldShow);
 }
 
+function closeModal(){
+  const m = document.getElementById('modalOverlay');
+  if (m) m.remove();
+}
+
+function showOrderSummaryModal(items, total, orderId){
+  const rows = items.map(it => `<div class="modal-item"><div>${it.name}　<span class="muted">x${it.qty}</span></div><div>NT$${it.unitPrice * it.qty}</div></div>`).join('');
+  const html = `
+    <div class="modal-overlay" id="modalOverlay" onclick="if(event.target.id==='modalOverlay')closeModal()">
+      <div class="modal-card">
+        <h3>訂購單已送出</h3>
+        <div class="modal-sub">訂單編號：${orderId || ''}</div>
+        ${rows}
+        <div class="modal-total"><div>預估總額</div><div>NT$${total}</div></div>
+        <div class="modal-next">請於截止時間前完成轉帳，並至「我的訂單」回報帳號末五碼，待管理員確認款項後即完成訂購。</div>
+        <button class="primary modal-close" onclick="closeModal()">我知道了</button>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
 async function submitCart(){
   const items = Object.keys(CART).filter(sku => CART[sku] > 0).map(sku => {
     const p = PRODUCTS.find(x => x.sku === sku);
     return { sku, name: p.name, qty: CART[sku], unitPrice: p.price };
   });
   if (items.length === 0) { alert('請先選擇要訂購的花材數量'); return; }
+  const total = items.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
   const btn = event && event.target;
   if (btn) { if (btn.disabled) return; btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = '送出中...'; }
   try {
-    await api('submitOrder', [SHOP.shopId, items]);
-    alert('訂購單已送出！');
+    const res = await api('submitOrder', [SHOP.shopId, items]);
+    const orderId = res && res.orderId ? res.orderId : (typeof res === 'string' ? res : '');
     CART = {};
     loadCatalog();
     updateCartBar();
     switchTab('orders');
+    showOrderSummaryModal(items, total, orderId);
   } catch(e) {
     alert('送出失敗：' + e.message);
   } finally {
@@ -742,44 +799,90 @@ const FULFILL_LABEL = {
 
 const ORDER_ITEMS_CACHE = {};
 
+let SHOP_ORDERS = [];
+let SHOP_ORDER_FILTER = '全部';
+const SHOP_ORDER_FILTERS = ['全部', '待付款', '待確認', '已收款', '已取消'];
+
+function fulfillTrackHtml(fulfillStatus){
+  if (fulfillStatus === '已取消') {
+    return `<div class="fulfill-track"><div class="ft-step cancelled"></div><div class="ft-step cancelled"></div><div class="ft-step cancelled"></div><div class="ft-step cancelled"></div></div><div class="fulfill-track-label">已取消</div>`;
+  }
+  const idx = Math.max(0, ADMIN_FULFILL_FLOW.indexOf(fulfillStatus));
+  const steps = ADMIN_FULFILL_FLOW.map((s, i) => `<div class="ft-step ${i <= idx ? 'done' : ''}"></div>`).join('');
+  return `<div class="fulfill-track">${steps}</div><div class="fulfill-track-label">${FULFILL_LABEL[fulfillStatus] || fulfillStatus || '待採購'}</div>`;
+}
+
 async function loadOrders(){
   const el = document.getElementById('ordersList');
   el.innerHTML = skeletonRows(3);
   try {
-    const orders = await api('getShopOrders', [SHOP.shopId]);
-    if (orders.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
-    el.innerHTML = orders.map(o => {
-      const paid = o.paymentStatus === '已收款';
-      const cancelled = o.fulfillStatus === '已取消';
-      return `
-      <div class="row" style="display:block;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div style="font-weight:700;">${o.orderId}</div>
-          <div style="display:flex;gap:6px;">
-            <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
-            <div class="badge-wait">${FULFILL_LABEL[o.fulfillStatus] || o.fulfillStatus || '待採購'}</div>
-          </div>
-        </div>
-        <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
-        <div class="muted">預估金額：NT$${o.estimatedAmount || 0}</div>
-        ${!paid && !cancelled ? `
-        <div style="margin-top:8px;padding:10px;background:var(--wait-tint);border-radius:4px;">
-          ${o.transferLast5 ? `<div class="muted">已回報帳號末五碼：<b>${o.transferLast5}</b>，待管理員確認款項</div>` : `
-          <div style="display:flex;gap:6px;">
-            <input id="last5-${o.orderId}" placeholder="轉帳帳號末五碼" maxlength="5" style="flex:1;">
-            <button class="tiny" onclick="doReportPayment('${o.orderId}')">回報付款</button>
-          </div>`}
-        </div>` : ''}
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
-          ${(o.fulfillStatus !== '已取消' && o.fulfillStatus !== '已完成') ? `<button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button>` : ''}
-        </div>
-        <div id="items-${o.orderId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
-      </div>`;
-    }).join('');
+    SHOP_ORDERS = await api('getShopOrders', [SHOP.shopId]);
+    renderOrderFilterChips();
+    renderOrders();
   } catch(e) {
-    el.textContent = '載入失敗：' + e.message;
+    el.innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadOrders()">重試</button>`;
   }
+}
+
+function renderOrderFilterChips(){
+  const box = document.getElementById('ordersFilterChips');
+  if (!box) return;
+  const counts = {
+    '全部': SHOP_ORDERS.length,
+    '待付款': SHOP_ORDERS.filter(o => o.paymentStatus !== '已收款' && !o.transferLast5 && o.fulfillStatus !== '已取消').length,
+    '待確認': SHOP_ORDERS.filter(o => o.paymentStatus !== '已收款' && o.transferLast5 && o.fulfillStatus !== '已取消').length,
+    '已收款': SHOP_ORDERS.filter(o => o.paymentStatus === '已收款').length,
+    '已取消': SHOP_ORDERS.filter(o => o.fulfillStatus === '已取消').length,
+  };
+  box.innerHTML = SHOP_ORDER_FILTERS.map(f => `<div class="chip ${f === SHOP_ORDER_FILTER ? 'active' : ''}" onclick="setOrderFilter('${f}')">${f}（${counts[f]}）</div>`).join('');
+}
+
+function setOrderFilter(f){
+  SHOP_ORDER_FILTER = f;
+  renderOrderFilterChips();
+  renderOrders();
+}
+
+function renderOrders(){
+  const el = document.getElementById('ordersList');
+  if (!el) return;
+  if (SHOP_ORDERS.length === 0) { el.textContent = '目前沒有任何訂單'; return; }
+  const filtered = SHOP_ORDERS.filter(o => {
+    if (SHOP_ORDER_FILTER === '全部') return true;
+    if (SHOP_ORDER_FILTER === '待付款') return o.paymentStatus !== '已收款' && !o.transferLast5 && o.fulfillStatus !== '已取消';
+    if (SHOP_ORDER_FILTER === '待確認') return o.paymentStatus !== '已收款' && o.transferLast5 && o.fulfillStatus !== '已取消';
+    if (SHOP_ORDER_FILTER === '已收款') return o.paymentStatus === '已收款';
+    if (SHOP_ORDER_FILTER === '已取消') return o.fulfillStatus === '已取消';
+    return true;
+  });
+  if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">此篩選下沒有訂單</div>'; return; }
+  el.innerHTML = filtered.map(o => {
+    const paid = o.paymentStatus === '已收款';
+    const cancelled = o.fulfillStatus === '已取消';
+    return `
+    <div class="row" style="display:block;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="font-weight:700;">${o.orderId}</div>
+        <div class="${paid ? 'badge-ok' : 'badge-wait'}">${o.paymentStatus || '待付款'}</div>
+      </div>
+      <div class="muted">建立時間：${o.createdAt ? new Date(o.createdAt).toLocaleString('zh-TW') : ''}</div>
+      <div class="muted">預估金額：NT$${o.estimatedAmount || 0}</div>
+      ${fulfillTrackHtml(o.fulfillStatus)}
+      ${!paid && !cancelled ? `
+      <div style="margin-top:8px;padding:10px;background:var(--wait-tint);border-radius:4px;">
+        ${o.transferLast5 ? `<div class="muted">已回報帳號末五碼：<b>${o.transferLast5}</b>，待管理員確認款項</div>` : `
+        <div style="display:flex;gap:6px;">
+          <input id="last5-${o.orderId}" placeholder="轉帳帳號末五碼" maxlength="5" style="flex:1;">
+          <button class="tiny" onclick="doReportPayment('${o.orderId}')">回報付款</button>
+        </div>`}
+      </div>` : ''}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="tiny" onclick="toggleOrderItems('${o.orderId}')" id="toggle-${o.orderId}">查看明細</button>
+        ${(o.fulfillStatus !== '已取消' && o.fulfillStatus !== '已完成') ? `<button class="secondary" onclick="doCancel('${o.orderId}')">申請取消</button>` : ''}
+      </div>
+      <div id="items-${o.orderId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
+    </div>`;
+  }).join('');
 }
 
 async function doReportPayment(orderId){
@@ -814,14 +917,24 @@ async function toggleOrderItems(orderId){
       ORDER_ITEMS_CACHE[orderId] = items;
     }
     if (!items || items.length === 0) { box.innerHTML = '<div class="muted">查無明細</div>'; return; }
+    const total = items.reduce((sum, it) => sum + (it.lineTotal || 0), 0);
     box.innerHTML = items.map(it => `
       <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;">
         <div>${it.name}　<span class="muted">x${it.qty}</span></div>
         <div class="muted">NT$${it.unitPrice} · 小計 NT$${it.lineTotal}</div>
-      </div>`).join('');
+      </div>`).join('') + `<div class="items-total"><div>合計</div><div>NT$${total}</div></div>`;
   } catch(e) {
-    box.innerHTML = '<div class="muted">載入失敗：' + e.message + '</div>';
+    box.innerHTML = `<div class="muted">載入失敗：${e.message} <button class="tiny retry-btn" onclick="retryOrderItems('${orderId}')">重試</button></div>`;
   }
+}
+
+async function retryOrderItems(orderId){
+  delete ORDER_ITEMS_CACHE[orderId];
+  const box = document.getElementById('items-' + orderId);
+  if (box) box.style.display = 'none';
+  const btn = document.getElementById('toggle-' + orderId);
+  if (btn) btn.textContent = '查看明細';
+  toggleOrderItems(orderId);
 }
 
 async function doCancel(orderId){
@@ -854,7 +967,7 @@ async function loadAdminOrders(){
     renderAdminOrderFilterChips();
     renderAdminOrders();
   } catch(e) {
-    el.textContent = '載入失敗：' + e.message;
+    el.innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadAdminOrders()">重試</button>`;
   }
 }
 
@@ -952,12 +1065,17 @@ async function adminNextStatus(orderId, newStatus){
   }
 }
 
+let ADMIN_BATCH_CACHE = null;
+let ADMIN_BATCH_SUMMARY_CACHE = null;
+
 async function loadAdminBatch(){
   const el = document.getElementById('adminBatchList');
   el.innerHTML = skeletonRows(3);
   try {
     const batch = await api('getCurrentBatchInfo', []);
     const summary = await api('getBatchSummary', [batch.batchId]);
+    ADMIN_BATCH_CACHE = batch;
+    ADMIN_BATCH_SUMMARY_CACHE = summary;
     let html = `<div class="muted" style="margin-bottom:10px;">批次 ${batch.batchId}　已收款訂單 ${summary.orderCount} 筆　截止：${batch.cutoffAt ? new Date(batch.cutoffAt).toLocaleString('zh-TW') : ''}</div>`;
     if (summary.skuTotals.length === 0) {
       html += '<div class="muted">目前尚無已收款訂單，暫無需向荷蘭下單的品項</div>';
@@ -970,28 +1088,74 @@ async function loadAdminBatch(){
     }
     el.innerHTML = html;
   } catch(e) {
-    el.textContent = '載入失敗：' + e.message;
+    el.innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadAdminBatch()">重試</button>`;
   }
 }
 
+function exportBatchCSV(){
+  if (!ADMIN_BATCH_CACHE || !ADMIN_BATCH_SUMMARY_CACHE || ADMIN_BATCH_SUMMARY_CACHE.skuTotals.length === 0) {
+    alert('目前尚無資料可匯出');
+    return;
+  }
+  const rows = [['SKU', '品名', '總數量']];
+  ADMIN_BATCH_SUMMARY_CACHE.skuTotals.forEach(s => rows.push([s.sku, s.name, s.totalQty]));
+  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `批次採購彙總_${ADMIN_BATCH_CACHE.batchId}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 let ADMIN_SHOPS = [];
+let ADMIN_SHOP_FILTER = '全部';
+const ADMIN_SHOP_FILTERS = ['全部', '啟用中', '待審核'];
 
 async function loadAdminShops(){
   const el = document.getElementById('adminShopsList');
   el.innerHTML = skeletonRows(4);
   try {
     ADMIN_SHOPS = await api('getAllShops', []);
+    renderAdminShopFilterChips();
     renderAdminShops();
   } catch(e) {
-    el.textContent = '載入失敗：' + e.message;
+    el.innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadAdminShops()">重試</button>`;
   }
+}
+
+function renderAdminShopFilterChips(){
+  const box = document.getElementById('adminShopsFilterChips');
+  if (!box) return;
+  const counts = {
+    '全部': ADMIN_SHOPS.length,
+    '啟用中': ADMIN_SHOPS.filter(s => s.status === 'active').length,
+    '待審核': ADMIN_SHOPS.filter(s => s.status !== 'active').length,
+  };
+  box.innerHTML = ADMIN_SHOP_FILTERS.map(f => `<div class="chip ${f === ADMIN_SHOP_FILTER ? 'active' : ''}" onclick="setAdminShopFilter('${f}')">${f}（${counts[f]}）</div>`).join('');
+}
+
+function setAdminShopFilter(f){
+  ADMIN_SHOP_FILTER = f;
+  renderAdminShopFilterChips();
+  renderAdminShops();
 }
 
 function renderAdminShops(){
   const el = document.getElementById('adminShopsList');
   if (!el) return;
   const q = (document.getElementById('adminShopsSearch')?.value || '').trim().toLowerCase();
-  const filtered = ADMIN_SHOPS.filter(s => !q || (s.shopName && s.shopName.toLowerCase().includes(q)) || (String(s.shopId || '').toLowerCase().includes(q)));
+  const filtered = ADMIN_SHOPS.filter(s => {
+    const matchesQuery = !q || (s.shopName && s.shopName.toLowerCase().includes(q)) || (String(s.shopId || '').toLowerCase().includes(q));
+    if (!matchesQuery) return false;
+    if (ADMIN_SHOP_FILTER === '全部') return true;
+    if (ADMIN_SHOP_FILTER === '啟用中') return s.status === 'active';
+    if (ADMIN_SHOP_FILTER === '待審核') return s.status !== 'active';
+    return true;
+  });
   if (filtered.length === 0) { el.innerHTML = '<div class="muted" style="padding:16px 0;text-align:center;">找不到符合的花商</div>'; return; }
   el.innerHTML = filtered.map(s => `
     <div class="row" style="display:block;">
@@ -1021,7 +1185,7 @@ async function loadAdminStock(){
     ADMIN_STOCK = await api('getInventory', []);
     renderAdminStock();
   } catch(e) {
-    el.textContent = '載入失敗：' + e.message;
+    el.innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadAdminStock()">重試</button>`;
   }
 }
 
@@ -1034,7 +1198,7 @@ function renderAdminStock(){
   el.innerHTML = filtered.map(p => `
     <div class="row">
       <div class="prod-info">
-        <img class="prod-thumb" src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="${p.name}">
+        <img class="prod-thumb" src="${p.imageUrl || ''}" loading="lazy" onerror="this.style.visibility='hidden'" alt="${p.name}">
         <div>
           <div class="prod-name">${p.name}</div>
           <div class="muted">庫存：${p.stock}　安全庫存：${p.safetyStock}${p.stock < p.safetyStock ? ' · <span class="badge-low">偏低</span>' : ''}</div>
