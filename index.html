@@ -250,8 +250,9 @@
   .bouquet-stage{touch-action:pan-y;}
 
   /* 紙包裝造型：z-index 10，會擋住插得較深的莖 */
+  /* 紙包裝：開口要朝上（寬）、收尾在下（窄），花才會從「開口」冒出來，不是從一個尖點冒出來 */
   .bouquet-cone{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:150px;height:170px;z-index:10;
-    clip-path:polygon(50% 0%, 84% 100%, 16% 100%);
+    clip-path:polygon(16% 0%, 84% 0%, 60% 100%, 40% 100%);
     box-shadow:inset -18px 0 30px rgba(0,0,0,.16), inset 16px 0 22px rgba(255,255,255,.22);}
   .bouquet-cone::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;
     background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 70%);}
