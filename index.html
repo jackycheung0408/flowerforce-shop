@@ -1070,27 +1070,28 @@ function showBouquetName(){
 }
 
 // 依每支花在花束中的左右角度與「前後景深」計算排列位置。
-// 景深分三層：後排（邊緣、較小、較暗、位置較高＝花莖較長）／中層／前排（中央、較大、較亮、位置較低＝花莖較短、離觀者最近）
-function bouquetFanLayout(count, index, sizeCfg){
-  const spread = Math.min(155, 40 + count * 13);
+// 花朵要「插」在瓶口／紙包裝的頸部，緊密簇擁成一個圓頂，不能懸空。
+// 景深分三層：後排（邊緣、較小、較暗、位置略高＝花莖較長，退到後方）／中層／前排（中央、較大、較亮、位置略低＝花莖較短，離觀者最近）
+function bouquetFanLayout(count, index, rigScale, neckY){
+  const spread = Math.min(150, 46 + count * 11);
   const step = count > 1 ? spread / (count - 1) : 0;
   const angleDeg = count > 1 ? (-spread / 2 + step * index) : 0;
   const rad = angleDeg * Math.PI / 180;
-  const radius = sizeCfg.radius + Math.min(count, 7) * (sizeCfg.radius / 20);
+  const radius = (34 + Math.min(count, 8) * 3) * rigScale;
   const dx = Math.sin(rad) * radius;
-  const domeHeight = sizeCfg.radius * 0.6 + Math.cos(rad) * (sizeCfg.radius * 0.85);
-  const rot = angleDeg * 0.5;
+  const domeArc = 22 * rigScale * Math.cos(rad); // 中央略高、兩側略低，呈圓弧輪廓
+  const rot = angleDeg * 0.45;
 
-  // 景深：以離中心的距離判斷前中後排
+  // 景深：以離中心的距離判斷前中後排（前排下沉插入花束核心，後排微微探出上方）
   const centerDist = count > 1 ? Math.abs(index - (count - 1) / 2) / ((count - 1) / 2) : 0;
-  let depth, scale, bottomBoost, brightZ;
-  if (centerDist < 0.34) { depth = 'front'; scale = 1.12; bottomBoost = 0; brightZ = 3; }
-  else if (centerDist < 0.7) { depth = 'mid'; scale = 1.0; bottomBoost = sizeCfg.flowerPx * 0.28; brightZ = 2; }
-  else { depth = 'back'; scale = 0.86; bottomBoost = sizeCfg.flowerPx * 0.5; brightZ = 1; }
+  let depth, scale, depthLift, brightZ;
+  if (centerDist < 0.34) { depth = 'front'; scale = 1.14; depthLift = -6 * rigScale; brightZ = 3; }
+  else if (centerDist < 0.7) { depth = 'mid'; scale = 1.0; depthLift = 8 * rigScale; brightZ = 2; }
+  else { depth = 'back'; scale = 0.84; depthLift = 20 * rigScale; brightZ = 1; }
 
   return {
     dx, rot, depth, scale,
-    bottom: sizeCfg.radius * 2 + domeHeight + bottomBoost,
+    bottom: neckY + domeArc + depthLift,
     zIndex: brightZ * 10 + (10 - Math.round(centerDist * 9)),
   };
 }
@@ -1102,6 +1103,8 @@ function renderBouquetStage(){
   const rigScale = sizeCfg.rigScale;
   const isVase = BOUQUET_CONTAINER === 'vase';
   const isGlass = isVase && VASE_STYLES.some(v => v.color === BOUQUET_VASE_COLOR && v.glass);
+  // 容器頸口的實際像素高度（隨 rigScale 縮放），花束底部要落在這個高度附近，並往下插入約 22px 藏住莖部
+  const neckY = (isVase ? 150 : 188) * rigScale - 22 * rigScale;
 
   const containerHtml = isVase
     ? `<div class="bouquet-vase ${isGlass ? 'glass' : ''}" style="background:${BOUQUET_VASE_COLOR};">
@@ -1122,7 +1125,7 @@ function renderBouquetStage(){
   const n = BOUQUET_ITEMS.length;
   const px = sizeCfg.flowerPx;
   const flowers = BOUQUET_ITEMS.map((item, idx) => {
-    const { dx, bottom, rot, depth, scale, zIndex } = bouquetFanLayout(n, idx, sizeCfg);
+    const { dx, bottom, rot, depth, scale, zIndex } = bouquetFanLayout(n, idx, rigScale, neckY);
     const left = 50 + (dx / 220) * 100;
     return `
       <div class="bouquet-flower depth-${depth}" style="width:${px}px;height:${px}px;left:${left}%;bottom:${bottom.toFixed(0)}px;
