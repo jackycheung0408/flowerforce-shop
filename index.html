@@ -1087,7 +1087,7 @@ function defaultPositionFor(index){
   const spreadSeed = ((index * 37 + BOUQUET_ID_SEQ * 13) % 100) / 100; // 0~1 偽隨機但穩定
   let xOff = -STEM_X_LIMIT + spreadSeed * (STEM_X_LIMIT * 2) + (Math.random() - 0.5) * 14;
   xOff = Math.max(-STEM_X_LIMIT, Math.min(STEM_X_LIMIT, xOff));
-  const headBottom = VASE_TOP_Y + 12 + Math.random() * 110; // 露出瓶口 12px ~ 122px 高
+  const headBottom = VASE_TOP_Y + 6 + Math.random() * 34; // 露出瓶口 6px ~ 40px 高，像真的插在瓶口附近
   const rot = (Math.random() - 0.5) * 14;
   return { xOff, headBottom, rot };
 }
@@ -1272,7 +1272,7 @@ function bindBouquetDrag(){
     const item = BOUQUET_ITEMS.find(it => it.id === BOUQUET_DRAG.id);
     if (!item) return;
     const xOff = Math.max(-STEM_X_LIMIT, Math.min(STEM_X_LIMIT, BOUQUET_DRAG.startXOff + dxClient));
-    const headBottom = Math.max(VASE_TOP_Y + 4, Math.min(360, BOUQUET_DRAG.startHeadBottom - dyClient));
+    const headBottom = Math.max(VASE_TOP_Y, Math.min(VASE_TOP_Y + 46, BOUQUET_DRAG.startHeadBottom - dyClient));
     item.xOff = xOff;
     item.headBottom = headBottom;
     const flowerEl = stage.querySelector(`.bouquet-flower[data-flower-id="${item.id}"]`);
