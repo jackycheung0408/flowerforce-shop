@@ -249,6 +249,14 @@
   .bouquet-empty-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     text-align:center;color:var(--ink-soft);font-size:12.5px;padding:20px;z-index:1;}
 
+  /* 花盆輪廓：純背景裝飾，讓畫布看起來像「插在花盆裡」，但花朵位置完全自由擺放，
+     不會再做之前那套「花莖插入瓶口對齊」的邏輯，所以不管怎麼拖都不會有懸空或跑版問題。 */
+  .bouquet-pot{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:150px;height:70px;
+    background:rgba(0,0,0,.14);border-radius:0 0 22px 22px;clip-path:polygon(6% 0%,94% 0%,84% 100%,16% 100%);
+    z-index:0;pointer-events:none;}
+  .bouquet-pot::before{content:'';position:absolute;left:-6%;right:-6%;top:-8px;height:16px;border-radius:50%;
+    background:rgba(0,0,0,.10);}
+
   .bouquet-flower{position:absolute;cursor:grab;transition:filter .15s ease;user-select:none;touch-action:none;
     filter:drop-shadow(0 3px 4px rgba(0,0,0,.22));}
   .bouquet-flower:active{cursor:grabbing;}
@@ -1175,8 +1183,10 @@ function renderBouquetStage(){
   if (!stage) return;
   stage.style.background = BOUQUET_MAT;
 
+  const potHtml = `<div class="bouquet-pot"></div>`;
+
   if (BOUQUET_ITEMS.length === 0) {
-    stage.innerHTML = `<div class="bouquet-empty-hint">從下方點選花材，開始搭出你的第一束花吧 ❧</div>`;
+    stage.innerHTML = `${potHtml}<div class="bouquet-empty-hint">從下方點選花材，開始搭出你的第一束花吧 ❧</div>`;
     return;
   }
 
@@ -1193,7 +1203,7 @@ function renderBouquetStage(){
       </div>`;
   }).join('');
 
-  stage.innerHTML = flowers;
+  stage.innerHTML = potHtml + flowers;
 }
 
 // 拖曳：用事件代理綁在 stage 上一次即可，之後每次 renderBouquetStage 重新產生的花朵元素都吃得到
