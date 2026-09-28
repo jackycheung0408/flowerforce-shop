@@ -241,21 +241,32 @@
 
   .copy-id{cursor:pointer;border-bottom:1px dashed var(--gold);}
 
-  /* 花束畫布：改成「平鋪展示卡」，花朵是可以自由拖放的貼紙，位置完全由使用者決定，
-     不再嘗試模擬花瓶/紙包裝的立體透視（那套容器+花莖收攏的做法在小螢幕上一直對不齊、莖懸空），
-     這樣不管螢幕多窄都不會有元素跑出容器或撐開版面的問題。 */
-  .bouquet-stage{position:relative;height:360px;border-radius:8px;overflow:hidden;touch-action:pan-y;
-    border:1px solid var(--line);transition:background .2s ease;}
+  /* 花束畫布：花瓶固定畫在正中央下方，瓶口夠寬，花莖是直線、底部落在畫布可視範圍以下
+     （被 overflow:hidden 裁掉），往上穿過瓶身（被瓶身擋住看不到），只露出瓶口以上的部分。
+     因為花莖水平位移有限制在瓶身輪廓內，所以不管怎麼拖，莖都一定準確插進瓶口，不會懸空。 */
+  .bouquet-stage{position:relative;height:380px;border-radius:8px;overflow:hidden;touch-action:pan-y;
+    background:radial-gradient(360px 240px at 50% 26%, var(--leaf-tint) 0%, var(--surface) 72%);
+    border:1px solid var(--line);}
   .bouquet-empty-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     text-align:center;color:var(--ink-soft);font-size:12.5px;padding:20px;z-index:1;}
 
-  /* 花盆輪廓：純背景裝飾，讓畫布看起來像「插在花盆裡」，但花朵位置完全自由擺放，
-     不會再做之前那套「花莖插入瓶口對齊」的邏輯，所以不管怎麼拖都不會有懸空或跑版問題。 */
-  .bouquet-pot{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:150px;height:70px;
-    background:rgba(0,0,0,.14);border-radius:0 0 22px 22px;clip-path:polygon(6% 0%,94% 0%,84% 100%,16% 100%);
-    z-index:0;pointer-events:none;}
-  .bouquet-pot::before{content:'';position:absolute;left:-6%;right:-6%;top:-8px;height:16px;border-radius:50%;
-    background:rgba(0,0,0,.10);}
+  .bouquet-ground-shadow{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:14px;
+    border-radius:50%;background:rgba(0,0,0,.16);filter:blur(4px);z-index:1;}
+
+  /* 花瓶：寬口造型（開口比瓶底寬），z-index 10，會擋住插得較深的莖，讓花看起來真的「插」在瓶裡 */
+  .bouquet-vase{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:156px;height:120px;z-index:10;
+    clip-path:polygon(10% 0%,90% 0%,82% 100%,18% 100%);
+    box-shadow:inset -14px 0 26px rgba(0,0,0,.18), inset 12px 0 18px rgba(255,255,255,.3);}
+  .bouquet-vase.glass{box-shadow:inset -10px 0 22px rgba(0,0,0,.10), inset 14px 0 20px rgba(255,255,255,.55);}
+  .bouquet-vase::after{content:'';position:absolute;left:20%;top:8%;bottom:6%;width:8%;border-radius:6px;
+    background:linear-gradient(180deg,rgba(255,255,255,.55),transparent 75%);}
+  .bouquet-vase-water{position:absolute;left:14%;right:14%;bottom:5%;height:30%;border-radius:0 0 10px 10px;
+    background:linear-gradient(180deg, rgba(150,190,200,.35), rgba(120,165,180,.45));opacity:0;}
+  .bouquet-vase.glass .bouquet-vase-water{opacity:1;}
+
+  /* 花莖：z-index 5，比花瓶(10)低，落在瓶身輪廓內的那段會被瓶身擋住，只露出瓶口以上的部分 */
+  .bouquet-stem{position:absolute;bottom:-20px;width:2.4px;z-index:5;pointer-events:none;border-radius:2px;
+    background:linear-gradient(180deg,#6B8060,#4B5D45);}
 
   .bouquet-flower{position:absolute;cursor:grab;transition:filter .15s ease;user-select:none;touch-action:none;
     filter:drop-shadow(0 3px 4px rgba(0,0,0,.22));}
@@ -413,8 +424,8 @@
       </div>
 
       <div style="margin-top:16px;">
-        <div class="muted" style="margin-bottom:6px;">襯底顏色</div>
-        <div id="matSwatches" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+        <div class="muted" style="margin-bottom:6px;">花瓶顏色</div>
+        <div id="vaseSwatches" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
 
       <div style="margin-top:14px;">
@@ -928,39 +939,46 @@ function renderCatalog(){
   el.innerHTML = sections || emptyStateHtml('❧', '找不到符合的花材，換個關鍵字試試');
 }
 
-// ==== 創意搭花 ====
+// ==== 創意搭花：真的把花「插」進花瓶裡 ====
+// 參考 FORi Flower（fori-flower-studio.com）的做法：花瓶固定畫在畫布中央下方，
+// 花莖是直的一條線，底部固定插在瓶身裡面（被花瓶擋住看不到），花瓶開口刻意畫得夠寬，
+// 所以不管使用者把花拖到瓶口內側的哪個位置，花莖都一定準確對到開口，不會有懸空、跑版的問題。
+// 拖曳時：左右調整花在瓶口的位置，上下調整這支花插得多高（多少莖露在瓶口外）。
 
-// ==== 創意搭花：自由排放的花束畫布 ====
-// 之前用花瓶/紙包裝容器 + 收攏花莖的做法，在小螢幕上一直對不齊、花莖懸空、容器撐開版面。
-// 改成更單純可靠的做法：花朵是可以自由拖放在畫布上任何位置的「貼紙」，使用者自己決定花的位置、
-// 大小、疊放順序，不用模擬真實花瓶的透視深度。完成後可以直接把選的花材加入購物車去下單。
-
-const MAT_COLORS = [
-  { name: '奶油白', color: '#F3E4DD' },
-  { name: '橄欖綠', color: '#EAEEE2' },
-  { name: '陶土棕', color: '#E8D4B8' },
-  { name: '霧霾藍', color: '#DCE3E0' },
-  { name: '玫瑰粉', color: '#F0D9D2' },
-  { name: '深墨綠', color: '#33422F' },
+const VASE_STYLES = [
+  { name: '透明玻璃', color: 'rgba(255,255,255,.16)', glass: true },
+  { name: '霧藍玻璃', color: 'rgba(140,170,190,.4)', glass: true },
+  { name: '白瓷', color: '#F5F1E8', glass: false },
+  { name: '陶土棕', color: '#C88B5A', glass: false },
+  { name: '墨綠陶', color: '#33422F', glass: false },
+  { name: '黑陶', color: '#2B2B2B', glass: false },
 ];
 // 每支花可以獨立選擇的大小（新增時套用在該支花本身，不是整束花的縮放）
 const FLOWER_SIZES = {
-  S: { label: '小花', px: 46 },
-  M: { label: '中花', px: 62 },
-  L: { label: '大花', px: 82 },
+  S: { label: '小花', px: 42 },
+  M: { label: '中花', px: 56 },
+  L: { label: '大花', px: 72 },
 };
 const BOUQUET_MAX = 12;
 
-let BOUQUET_ITEMS = [];      // { id, sku, name, size, xPct, yPct, rot, z }
+// 花瓶的固定幾何（px，跟螢幕寬度無關，所以在任何手機上瓶口位置都一致）：
+// 瓶身寬 156、高 120，底部離畫布底邊 18px；瓶口（clip-path 最寬處）左右各約 62px、
+// 瓶底左右各約 50px，所以只要花莖的水平位移不超過 ±48px，全程都會落在瓶身輪廓內。
+const VASE_WIDTH = 156, VASE_HEIGHT = 120, VASE_BOTTOM = 18;
+const VASE_TOP_Y = VASE_BOTTOM + VASE_HEIGHT; // 瓶口高度（露出瓶口以上才看得到）
+const STEM_X_LIMIT = 48;      // 花莖水平位移上限（px，相對畫布水平中心）
+const STEM_BASE_Y = -20;      // 花莖底部固定值（負值＝落在畫布可視範圍以下，被 overflow:hidden 裁掉，不用對齊瓶身也沒差）
+
+let BOUQUET_ITEMS = [];      // { id, sku, name, size, xOff, headBottom, rot, z }
 let BOUQUET_ID_SEQ = 0;
 let BOUQUET_Z_SEQ = 20;
-let BOUQUET_MAT = MAT_COLORS[0].color;
+let BOUQUET_VASE_COLOR = VASE_STYLES[0].color;
 let BOUQUET_NEXT_SIZE = 'M';
 let BOUQUET_INITED = false;
-let BOUQUET_DRAG = null; // { id, startClientX, startClientY, startXPct, startYPct, rectW, rectH, moved }
+let BOUQUET_DRAG = null; // { id, startClientX, startClientY, startXOff, startHeadBottom, moved }
 
-// 用手繪風 SVG 插畫取代真實商品照片：花朵在花束畫布上以單支花的圖畫呈現（有花莖、花萼、花瓣），
-// 而不是把整張帶包裝紙／標籤的商品縮圖直接貼上去，看起來才像「插花」而不是「貼照片」。
+// 用手繪風 SVG 插畫取代真實商品照片：花朵以單支花的圖畫呈現（花頭＋一小段自己的莖與葉），
+// 疊在主莖線的頂端，看起來就像花莖延伸上去開出花朵，而不是把商品縮圖直接貼上去。
 const FLOWER_PALETTES = {
   rose:  ['#C97B6C', '#D69686', '#8F4E42', '#E3AFA0'],
   tulip: ['#B6779A', '#8B5FA0', '#D9A7C7', '#6B4A85'],
@@ -1018,7 +1036,7 @@ function flowerArtHtml(name){
 }
 
 function initBouquet(){
-  renderMatSwatches();
+  renderVaseSwatches();
   renderSizeToggle();
   renderBouquetPicker();
   renderBouquetStage();
@@ -1026,17 +1044,16 @@ function initBouquet(){
   BOUQUET_INITED = true;
 }
 
-function renderMatSwatches(){
-  const box = document.getElementById('matSwatches');
+function renderVaseSwatches(){
+  const box = document.getElementById('vaseSwatches');
   if (!box) return;
-  box.innerHTML = MAT_COLORS.map(w => `<div class="wrap-swatch ${w.color === BOUQUET_MAT ? 'active' : ''}" style="background:${w.color};" title="${w.name}" onclick="setMatColor('${w.color}')"></div>`).join('');
-  const stage = document.getElementById('bouquetStage');
-  if (stage) stage.style.background = BOUQUET_MAT;
+  box.innerHTML = VASE_STYLES.map(w => `<div class="wrap-swatch ${w.color === BOUQUET_VASE_COLOR ? 'active' : ''}" style="background:${w.color};" title="${w.name}" onclick="setVaseColor('${w.color}')"></div>`).join('');
 }
 
-function setMatColor(color){
-  BOUQUET_MAT = color;
-  renderMatSwatches();
+function setVaseColor(color){
+  BOUQUET_VASE_COLOR = color;
+  renderVaseSwatches();
+  renderBouquetStage();
 }
 
 function renderSizeToggle(){
@@ -1064,13 +1081,15 @@ function renderBouquetPicker(){
     </div>`).join('');
 }
 
-// 新加入的花預設位置：在畫布中央附近隨機散開，之後可以再手動拖曳到任何位置
+// 新加入的花預設位置：水平落在瓶口安全範圍內散開一點，垂直高度也有高有低，看起來自然一些，
+// 之後都還可以再拖曳調整
 function defaultPositionFor(index){
   const spreadSeed = ((index * 37 + BOUQUET_ID_SEQ * 13) % 100) / 100; // 0~1 偽隨機但穩定
-  const xPct = 28 + spreadSeed * 44 + (Math.random() - 0.5) * 10; // 大約落在 20%~80% 之間
-  const yPct = 30 + Math.random() * 38; // 大約落在 30%~68% 之間（由上往下量）
-  const rot = (Math.random() - 0.5) * 16;
-  return { xPct: Math.max(10, Math.min(90, xPct)), yPct: Math.max(12, Math.min(84, yPct)), rot };
+  let xOff = -STEM_X_LIMIT + spreadSeed * (STEM_X_LIMIT * 2) + (Math.random() - 0.5) * 14;
+  xOff = Math.max(-STEM_X_LIMIT, Math.min(STEM_X_LIMIT, xOff));
+  const headBottom = VASE_TOP_Y + 12 + Math.random() * 110; // 露出瓶口 12px ~ 122px 高
+  const rot = (Math.random() - 0.5) * 14;
+  return { xOff, headBottom, rot };
 }
 
 function addToBouquet(sku){
@@ -1080,7 +1099,7 @@ function addToBouquet(sku){
   const pos = defaultPositionFor(BOUQUET_ITEMS.length);
   BOUQUET_ITEMS.push({
     id: ++BOUQUET_ID_SEQ, sku: p.sku, name: p.name, size: BOUQUET_NEXT_SIZE,
-    xPct: pos.xPct, yPct: pos.yPct, rot: pos.rot, z: ++BOUQUET_Z_SEQ,
+    xOff: pos.xOff, headBottom: pos.headBottom, rot: pos.rot, z: ++BOUQUET_Z_SEQ,
   });
   renderBouquetPicker();
   renderBouquetStage();
@@ -1110,7 +1129,7 @@ function clearBouquet(){
 function randomBouquet(){
   if (!PRODUCTS || PRODUCTS.length === 0) { showToast('花材還沒載入完成，請稍後再試', 'error'); return; }
   BOUQUET_ITEMS = [];
-  BOUQUET_MAT = MAT_COLORS[Math.floor(Math.random() * MAT_COLORS.length)].color;
+  BOUQUET_VASE_COLOR = VASE_STYLES[Math.floor(Math.random() * VASE_STYLES.length)].color;
   const pool = PRODUCTS.slice().sort(() => Math.random() - 0.5);
   const count = Math.min(pool.length, BOUQUET_MAX, 5 + Math.floor(Math.random() * 6));
   const sizes = Object.keys(FLOWER_SIZES);
@@ -1119,10 +1138,10 @@ function randomBouquet(){
     const pos = defaultPositionFor(i);
     BOUQUET_ITEMS.push({
       id: ++BOUQUET_ID_SEQ, sku: p.sku, name: p.name, size: sizes[Math.floor(Math.random() * sizes.length)],
-      xPct: pos.xPct, yPct: pos.yPct, rot: pos.rot, z: ++BOUQUET_Z_SEQ,
+      xOff: pos.xOff, headBottom: pos.headBottom, rot: pos.rot, z: ++BOUQUET_Z_SEQ,
     });
   }
-  renderMatSwatches();
+  renderVaseSwatches();
   renderBouquetPicker();
   renderBouquetStage();
   showBouquetName();
@@ -1181,29 +1200,45 @@ function addBouquetToCart(){
 function renderBouquetStage(){
   const stage = document.getElementById('bouquetStage');
   if (!stage) return;
-  stage.style.background = BOUQUET_MAT;
-
-  const potHtml = `<div class="bouquet-pot"></div>`;
+  const isGlass = VASE_STYLES.some(v => v.color === BOUQUET_VASE_COLOR && v.glass);
+  const vaseHtml = `<div class="bouquet-vase ${isGlass ? 'glass' : ''}" style="background:${BOUQUET_VASE_COLOR};">
+      <div class="bouquet-vase-water"></div>
+    </div>`;
 
   if (BOUQUET_ITEMS.length === 0) {
-    stage.innerHTML = `${potHtml}<div class="bouquet-empty-hint">從下方點選花材，開始搭出你的第一束花吧 ❧</div>`;
+    stage.innerHTML = `
+      <div class="bouquet-ground-shadow"></div>
+      ${vaseHtml}
+      <div class="bouquet-empty-hint">從下方點選花材，開始搭出你的第一束花吧 ❧</div>`;
     return;
   }
+
+  // 花莖：直的一條線，底部落在畫布可視範圍以下（被裁掉），往上穿過花瓶（被瓶身擋住看不到），
+  // 露出瓶口以上的部分才看得到——因為水平位移永遠在瓶身輪廓內，所以全程都準確對到瓶口，不會懸空。
+  const stems = BOUQUET_ITEMS.map(item => `
+    <div class="bouquet-stem" data-stem-id="${item.id}" style="left:calc(50% + ${item.xOff.toFixed(1)}px);
+      height:${(item.headBottom - STEM_BASE_Y).toFixed(0)}px;
+      transform:translateX(-50%) rotate(${item.rot.toFixed(1)}deg);transform-origin:bottom center;"></div>`).join('');
 
   const flowers = BOUQUET_ITEMS.map(item => {
     const px = FLOWER_SIZES[item.size] ? FLOWER_SIZES[item.size].px : FLOWER_SIZES.M.px;
     const w = Math.round(px * 0.6);
     const h = Math.round(px * 1.05);
     return `
-      <div class="bouquet-flower" data-flower-id="${item.id}" style="width:${w}px;height:${h}px;left:${item.xPct}%;top:${item.yPct}%;
-        transform:translate(-50%,-50%) rotate(${item.rot.toFixed(1)}deg);z-index:${item.z};"
-        title="拖曳調整位置，點一下移除：${item.name}">
+      <div class="bouquet-flower" data-flower-id="${item.id}" style="width:${w}px;height:${h}px;
+        left:calc(50% + ${item.xOff.toFixed(1)}px);bottom:${item.headBottom.toFixed(0)}px;
+        transform:translateX(-50%) rotate(${item.rot.toFixed(1)}deg);transform-origin:bottom center;z-index:${item.z};"
+        title="拖曳調整位置和高度，點一下移除：${item.name}">
         ${flowerArtHtml(item.name)}
         <div class="bf-remove">✕</div>
       </div>`;
   }).join('');
 
-  stage.innerHTML = potHtml + flowers;
+  stage.innerHTML = `
+    <div class="bouquet-ground-shadow"></div>
+    ${stems}
+    ${vaseHtml}
+    ${flowers}`;
 }
 
 // 拖曳：用事件代理綁在 stage 上一次即可，之後每次 renderBouquetStage 重新產生的花朵元素都吃得到
@@ -1220,11 +1255,9 @@ function bindBouquetDrag(){
     const item = BOUQUET_ITEMS.find(it => it.id === id);
     if (!item) return;
     e.preventDefault();
-    const rect = stage.getBoundingClientRect();
     BOUQUET_DRAG = {
       id, startClientX: e.clientX, startClientY: e.clientY,
-      startXPct: item.xPct, startYPct: item.yPct,
-      rectW: rect.width, rectH: rect.height, moved: false,
+      startXOff: item.xOff, startHeadBottom: item.headBottom, moved: false,
     };
     el.classList.add('dragging');
     try { el.setPointerCapture(e.pointerId); } catch(err) {}
@@ -1238,12 +1271,14 @@ function bindBouquetDrag(){
     if (!BOUQUET_DRAG.moved) return;
     const item = BOUQUET_ITEMS.find(it => it.id === BOUQUET_DRAG.id);
     if (!item) return;
-    const xPct = Math.max(4, Math.min(96, BOUQUET_DRAG.startXPct + (dxClient / BOUQUET_DRAG.rectW) * 100));
-    const yPct = Math.max(4, Math.min(96, BOUQUET_DRAG.startYPct + (dyClient / BOUQUET_DRAG.rectH) * 100));
-    item.xPct = xPct;
-    item.yPct = yPct;
+    const xOff = Math.max(-STEM_X_LIMIT, Math.min(STEM_X_LIMIT, BOUQUET_DRAG.startXOff + dxClient));
+    const headBottom = Math.max(VASE_TOP_Y + 4, Math.min(360, BOUQUET_DRAG.startHeadBottom - dyClient));
+    item.xOff = xOff;
+    item.headBottom = headBottom;
     const flowerEl = stage.querySelector(`.bouquet-flower[data-flower-id="${item.id}"]`);
-    if (flowerEl) { flowerEl.style.left = xPct + '%'; flowerEl.style.top = yPct + '%'; }
+    if (flowerEl) { flowerEl.style.left = `calc(50% + ${xOff.toFixed(1)}px)`; flowerEl.style.bottom = headBottom.toFixed(0) + 'px'; }
+    const stemEl = stage.querySelector(`.bouquet-stem[data-stem-id="${item.id}"]`);
+    if (stemEl) { stemEl.style.left = `calc(50% + ${xOff.toFixed(1)}px)`; stemEl.style.height = (headBottom - STEM_BASE_Y).toFixed(0) + 'px'; }
   });
 
   const endDrag = (e) => {
