@@ -231,6 +231,30 @@
   .sort-select{padding:7px 10px;border:1px solid var(--line);border-radius:20px;font-size:12.5px;color:var(--ink-soft);background:var(--surface);cursor:pointer;}
 
   .copy-id{cursor:pointer;border-bottom:1px dashed var(--gold);}
+
+  .bouquet-stage{position:relative;height:300px;border-radius:8px;overflow:hidden;
+    background:linear-gradient(180deg,var(--leaf-tint) 0%,var(--surface) 78%);
+    border:1px solid var(--line);}
+  .bouquet-empty-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    text-align:center;color:var(--ink-soft);font-size:12.5px;padding:20px;}
+  .bouquet-cone{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:190px;height:150px;
+    clip-path:polygon(50% 0%, 96% 100%, 4% 100%);box-shadow:0 -4px 14px rgba(0,0,0,.08) inset;}
+  .bouquet-ribbon{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);width:46px;height:22px;
+    background:var(--gold);border-radius:3px;box-shadow:0 2px 4px rgba(0,0,0,.15);z-index:5;}
+  .bouquet-flower{position:absolute;width:52px;height:52px;border-radius:50%;overflow:hidden;
+    border:2px solid var(--surface);box-shadow:0 3px 10px rgba(0,0,0,.18);cursor:pointer;background:var(--leaf-tint);}
+  .bouquet-flower img{width:100%;height:100%;object-fit:cover;}
+  .bouquet-flower .bf-remove{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;
+    background:#B23A48;color:#fff;font-size:9px;display:none;align-items:center;justify-content:center;line-height:1;}
+  .bouquet-flower:hover .bf-remove{display:flex;}
+
+  .wrap-swatch{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;box-shadow:0 0 0 1px var(--line) inset;}
+  .wrap-swatch.active{border-color:var(--gold);box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--gold);}
+
+  .bouquet-picker-chip{display:flex;align-items:center;gap:6px;flex-shrink:0;padding:5px 12px 5px 5px;border-radius:20px;
+    border:1px solid var(--line);background:var(--surface);font-size:12px;color:var(--ink-soft);cursor:pointer;white-space:nowrap;font-weight:600;}
+  .bouquet-picker-chip img{width:20px;height:20px;border-radius:50%;object-fit:cover;background:var(--leaf-tint);}
+  .bouquet-picker-chip.disabled{opacity:.4;pointer-events:none;}
   .skel-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
   .skel-card .skel-thumb{aspect-ratio:1/1;}
   .skel-card .skel-body{padding:9px 10px 11px;}
@@ -315,6 +339,7 @@
     <div style="display:flex;gap:4px;margin-top:18px;">
       <div class="tab active" id="tabCatalogBtn" onclick="switchTab('catalog')">訂花</div>
       <div class="tab inactive" id="tabOrdersBtn" onclick="switchTab('orders')">我的訂單</div>
+      <div class="tab inactive" id="tabBouquetBtn" onclick="switchTab('bouquet')">創意搭花</div>
     </div>
 
     <div id="catalogPane" class="card" style="border-top-left-radius:0;margin-top:0;">
@@ -341,6 +366,32 @@
       <h2>我的訂單</h2>
       <div class="chip-row" id="ordersFilterChips" style="margin-top:0;"></div>
       <div id="ordersList" class="muted" style="margin-top:10px;">載入中...</div>
+    </div>
+
+    <div id="bouquetPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
+      <h2>創意搭花</h2>
+      <div class="muted" style="text-align:center;margin-top:-8px;margin-bottom:14px;">挑選喜歡的花材，搭出屬於你的一束花，純粹好玩，跟訂購無關</div>
+
+      <div class="bouquet-stage" id="bouquetStage"></div>
+
+      <div style="display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap;">
+        <button class="primary" onclick="randomBouquet()">✨ 隨機搭配</button>
+        <button class="secondary" onclick="clearBouquet()">清空重來</button>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div class="muted" style="margin-bottom:6px;">包裝紙色</div>
+        <div id="wrapSwatches" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div class="muted" style="margin-bottom:6px;">點選花材加入花束（最多 9 支）</div>
+        <div class="cat-nav" id="bouquetPicker" style="margin-top:0;"></div>
+      </div>
+
+      <div id="bouquetNameCard" style="margin-top:16px;display:none;padding:14px 16px;background:var(--gold-tint);border-radius:6px;text-align:center;">
+        <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--leaf-dark);letter-spacing:1px;" id="bouquetNameText"></div>
+      </div>
     </div>
 
     <div class="footer-mark"><div class="line"></div>艸　·　Holland Flower Select</div>
@@ -658,13 +709,15 @@ function enterAdminApp(){
 }
 
 function switchTab(name){
-  const isCatalog = name === 'catalog';
-  document.getElementById('catalogPane').style.display = isCatalog ? '' : 'none';
-  document.getElementById('ordersPane').style.display = isCatalog ? 'none' : '';
-  document.getElementById('tabCatalogBtn').className = 'tab ' + (isCatalog ? 'active' : 'inactive');
-  document.getElementById('tabOrdersBtn').className = 'tab ' + (isCatalog ? 'inactive' : 'active');
-  if (!isCatalog) loadOrders();
-  document.getElementById('tabCatalogBtn').scrollIntoView({behavior:'smooth', block:'start'});
+  const panes = {catalog:'catalogPane', orders:'ordersPane', bouquet:'bouquetPane'};
+  const btns = {catalog:'tabCatalogBtn', orders:'tabOrdersBtn', bouquet:'tabBouquetBtn'};
+  Object.keys(panes).forEach(k => {
+    document.getElementById(panes[k]).style.display = (k === name) ? '' : 'none';
+    document.getElementById(btns[k]).className = 'tab ' + (k === name ? 'active' : 'inactive');
+  });
+  if (name === 'orders') loadOrders();
+  if (name === 'bouquet') initBouquet();
+  document.getElementById(btns[name]).scrollIntoView({behavior:'smooth', block:'start'});
   updateCartBar();
 }
 
@@ -810,6 +863,144 @@ function renderCatalog(){
       </div>`;
   }).join('');
   el.innerHTML = sections || emptyStateHtml('❧', '找不到符合的花材，換個關鍵字試試');
+}
+
+// ==== 創意搭花 ====
+
+const BOUQUET_MAX = 9;
+const WRAP_COLORS = [
+  { name: '奶油白', color: '#F3E4DD' },
+  { name: '橄欖綠', color: '#EAEEE2' },
+  { name: '陶土棕', color: '#E8D4B8' },
+  { name: '霧霾藍', color: '#DCE3E0' },
+  { name: '玫瑰粉', color: '#F0D9D2' },
+  { name: '深墨綠', color: '#33422F' },
+];
+let BOUQUET_ITEMS = [];
+let BOUQUET_WRAP = WRAP_COLORS[0].color;
+let BOUQUET_INITED = false;
+
+function initBouquet(){
+  renderWrapSwatches();
+  renderBouquetPicker();
+  renderBouquetStage();
+  BOUQUET_INITED = true;
+}
+
+function renderWrapSwatches(){
+  const box = document.getElementById('wrapSwatches');
+  if (!box) return;
+  box.innerHTML = WRAP_COLORS.map(w => `<div class="wrap-swatch ${w.color === BOUQUET_WRAP ? 'active' : ''}" style="background:${w.color};" title="${w.name}" onclick="setWrapColor('${w.color}')"></div>`).join('');
+}
+
+function setWrapColor(color){
+  BOUQUET_WRAP = color;
+  renderWrapSwatches();
+  renderBouquetStage();
+}
+
+function renderBouquetPicker(){
+  const box = document.getElementById('bouquetPicker');
+  if (!box) return;
+  if (!PRODUCTS || PRODUCTS.length === 0) { box.innerHTML = '<div class="muted">花材載入中，請先切到「訂花」分頁載入後再回來</div>'; return; }
+  const full = BOUQUET_ITEMS.length >= BOUQUET_MAX;
+  box.innerHTML = PRODUCTS.map(p => `
+    <div class="bouquet-picker-chip ${full ? 'disabled' : ''}" onclick="addToBouquet('${p.sku}')">
+      <img src="${p.imageUrl || ''}" onerror="this.style.visibility='hidden'" alt="">
+      ${p.name}
+    </div>`).join('');
+}
+
+function addToBouquet(sku){
+  if (BOUQUET_ITEMS.length >= BOUQUET_MAX) { showToast('花束已經滿囉，先清空或移除幾支再加吧'); return; }
+  const p = PRODUCTS.find(x => x.sku === sku);
+  if (!p) return;
+  BOUQUET_ITEMS.push({
+    sku: p.sku, name: p.name, imageUrl: p.imageUrl || '',
+    dx: Math.round((Math.random() - 0.5) * 150),
+    dy: Math.round(Math.random() * -30),
+    rot: Math.round((Math.random() - 0.5) * 40),
+    scale: (0.85 + Math.random() * 0.3).toFixed(2),
+  });
+  renderBouquetPicker();
+  renderBouquetStage();
+  showBouquetName();
+}
+
+function removeBouquetItem(idx){
+  BOUQUET_ITEMS.splice(idx, 1);
+  renderBouquetPicker();
+  renderBouquetStage();
+  if (BOUQUET_ITEMS.length === 0) {
+    const card = document.getElementById('bouquetNameCard');
+    if (card) card.style.display = 'none';
+  }
+}
+
+function clearBouquet(){
+  BOUQUET_ITEMS = [];
+  document.getElementById('bouquetNameCard').style.display = 'none';
+  renderBouquetPicker();
+  renderBouquetStage();
+}
+
+function randomBouquet(){
+  if (!PRODUCTS || PRODUCTS.length === 0) { showToast('花材還沒載入完成，請稍後再試', 'error'); return; }
+  BOUQUET_ITEMS = [];
+  const pool = PRODUCTS.slice().sort(() => Math.random() - 0.5);
+  const count = Math.min(pool.length, 5 + Math.floor(Math.random() * 4));
+  for (let i = 0; i < count; i++) {
+    const p = pool[i];
+    BOUQUET_ITEMS.push({
+      sku: p.sku, name: p.name, imageUrl: p.imageUrl || '',
+      dx: Math.round((Math.random() - 0.5) * 150),
+      dy: Math.round(Math.random() * -30),
+      rot: Math.round((Math.random() - 0.5) * 40),
+      scale: (0.85 + Math.random() * 0.3).toFixed(2),
+    });
+  }
+  BOUQUET_WRAP = WRAP_COLORS[Math.floor(Math.random() * WRAP_COLORS.length)].color;
+  renderWrapSwatches();
+  renderBouquetPicker();
+  renderBouquetStage();
+  showBouquetName();
+}
+
+function showBouquetName(){
+  const card = document.getElementById('bouquetNameCard');
+  const text = document.getElementById('bouquetNameText');
+  if (!card || !text || BOUQUET_ITEMS.length === 0) return;
+  const moods = ['晨光', '微醺', '漫步', '低語', '慢想', '拾光', '暖日', '輕吟', '悠然'];
+  const mood = moods[Math.floor(Math.random() * moods.length)];
+  const uniqueNames = [...new Set(BOUQUET_ITEMS.map(i => i.name))];
+  const lead = uniqueNames[0] || '無名';
+  text.textContent = `《${mood}．${lead}》－ 這束花，是你今天的心情`;
+  card.style.display = '';
+}
+
+function renderBouquetStage(){
+  const stage = document.getElementById('bouquetStage');
+  if (!stage) return;
+  if (BOUQUET_ITEMS.length === 0) {
+    stage.innerHTML = `
+      <div class="bouquet-cone" style="background:${BOUQUET_WRAP};"></div>
+      <div class="bouquet-empty-hint">從下方點選花材，開始搭出你的第一束花吧 ❧</div>`;
+    return;
+  }
+  const flowers = BOUQUET_ITEMS.map((item, idx) => {
+    const left = 50 + (item.dx / 190) * 50;
+    const bottom = 70 + Math.max(0, -item.dy);
+    return `
+      <div class="bouquet-flower" style="left:${left}%;bottom:${bottom}px;transform:translateX(-50%) rotate(${item.rot}deg) scale(${item.scale});z-index:${10 + idx};"
+        title="${item.name}" onclick="removeBouquetItem(${idx})">
+        <img src="${item.imageUrl}" onerror="this.style.visibility='hidden'" alt="${item.name}">
+        <div class="bf-remove">✕</div>
+      </div>`;
+  }).join('');
+  stage.innerHTML = `
+    <div class="bouquet-cone" style="background:${BOUQUET_WRAP};"></div>
+    <div class="bouquet-ribbon"></div>
+    ${flowers}`;
 }
 
 function changeQty(sku, delta){
