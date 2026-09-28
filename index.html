@@ -994,13 +994,15 @@ const VASE_SHAPES = [
     clip: 'polygon(10% 0%,90% 0%,82% 100%,18% 100%)', xLimit: 26 },
   { key: 'slender', label: '修長瓶', cat: 'vase', width: 90, height: 190,
     clip: 'polygon(30% 0%,70% 0%,58% 100%,42% 100%)', xLimit: 6 },
-  // 花束（紙包/裸束）跟花器相反：開口寬的一端在「上面」（花頭從這裡散開），
-  // 綁繩／收口的一端在「下面」，所以花莖必須整段收在這個很窄的收口內，
-  // xLimit 要用底部收口的寬度算，不能沿用花器的算法（之前算太寬，導致花莖從兩側穿出去）。
-  { key: 'paper', label: '紙包花束', cat: 'bouquet', width: 140, height: 150,
-    clip: 'polygon(6% 0%,94% 0%,58% 100%,42% 100%)', xLimit: 7 },
-  { key: 'naked', label: '裸束', cat: 'bouquet', width: 90, height: 130,
-    clip: 'polygon(20% 0%,80% 0%,54% 100%,46% 100%)', xLimit: 3 },
+  // 花束（紙包/裸束）實際去看範例網站，跟花器完全不是同一種比例：包裝紙幾乎佔滿整個畫布高度，
+  // 上緣是攤開的兩片紙尖（開口寬），往下收成一個很窄的綁繩結，結下面再垂出一小截尾巴，
+  // 花莖幾乎整段都被包在紙裡看不到，只有花頭從最上面的開口露出來一點點——
+  // 所以容器要做得夠「高」（接近畫布可用高度），花莖露出的高度上限也要跟著調低（visibleMax），
+  // 不能沿用花器那種矮胖瓶身的比例，不然花莖看起來就會像從一個小罐子裡插出一大截棍子。
+  { key: 'paper', label: '紙包花束', cat: 'bouquet', width: 130, height: 220, visibleMax: 50,
+    clip: 'polygon(10% 0%,90% 0%,58% 72%,58% 100%,42% 100%,42% 72%)', xLimit: 7 },
+  { key: 'naked', label: '裸束', cat: 'bouquet', width: 90, height: 170, visibleMax: 50,
+    clip: 'polygon(20% 0%,80% 0%,54% 68%,54% 100%,46% 100%,46% 68%)', xLimit: 3 },
   { key: 'mug', label: '馬克杯', cat: 'fun', width: 120, height: 100,
     clip: 'polygon(8% 0%,92% 0%,88% 100%,12% 100%)', xLimit: 40 },
   { key: 'tv', label: '復古電視', cat: 'fun', width: 150, height: 110,
@@ -1010,6 +1012,7 @@ const VASE_BOTTOM = 18; // 花瓶底部離畫布底邊的固定距離
 function currentVaseShape(){ return VASE_SHAPES.find(s => s.key === BOUQUET_VASE_SHAPE) || VASE_SHAPES[0]; }
 function currentVaseTopY(){ return VASE_BOTTOM + currentVaseShape().height; }
 function currentXLimit(){ return currentVaseShape().xLimit; }
+function currentVisibleMax(){ return currentVaseShape().visibleMax || VISIBLE_STEM_MAX; }
 
 // 每支花可以獨立選擇的大小（新增時套用在該支花本身，不是整束花的縮放）
 const FLOWER_SIZES = {
@@ -1162,7 +1165,7 @@ function setVaseShape(key){
   BOUQUET_ITEMS.forEach(item => {
     item.xOff = Math.max(-xLimit, Math.min(xLimit, item.xOff));
     const visible = Math.max(6, item.headBottom - oldTopY);
-    item.headBottom = newTopY + Math.min(visible, VISIBLE_STEM_MAX);
+    item.headBottom = newTopY + Math.min(visible, currentVisibleMax());
   });
   renderBouquetStage();
   if (BOUQUET_SELECTED_ID != null) renderAdjustPanel();
@@ -1214,7 +1217,8 @@ function defaultPositionFor(index){
   const spreadSeed = ((index * 37 + BOUQUET_ID_SEQ * 13) % 100) / 100; // 0~1 偽隨機但穩定
   let xOff = -xLimit + spreadSeed * (xLimit * 2) + (Math.random() - 0.5) * Math.min(14, xLimit);
   xOff = Math.max(-xLimit, Math.min(xLimit, xOff));
-  const headBottom = currentVaseTopY() + 8 + Math.random() * 48; // 露出瓶口 8px ~ 56px 高
+  const visMax = currentVisibleMax();
+  const headBottom = currentVaseTopY() + 8 + Math.random() * Math.max(1, visMax - 12); // 露出開口 8px ~ visMax-4 高
   const rot = (Math.random() - 0.5) * 14;
   return { xOff, headBottom, rot };
 }
@@ -1383,7 +1387,7 @@ function renderAdjustPanel(){
   const topY = currentVaseTopY();
   const heightSlider = document.getElementById('bouquetHeightSlider');
   if (heightSlider) {
-    heightSlider.min = 0; heightSlider.max = VISIBLE_STEM_MAX;
+    heightSlider.min = 0; heightSlider.max = currentVisibleMax();
     heightSlider.value = Math.round(item.headBottom - topY);
     heightSlider.oninput = () => {
       item.headBottom = topY + Number(heightSlider.value);
