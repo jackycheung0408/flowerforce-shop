@@ -415,7 +415,8 @@
       <div class="muted" style="text-align:center;margin-top:8px;font-size:11.5px;">💡 左右拖曳調整位置，點一下選取後可以用下面的滑桿微調高度和角度</div>
 
       <div id="bouquetAdjustPanel" style="margin-top:12px;display:none;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;">
-        <div style="font-weight:700;margin-bottom:10px;" id="bouquetAdjustTitle"></div>
+        <div class="muted" style="font-size:12px;margin-bottom:4px;">調整這支花</div>
+        <select id="bouquetAdjustSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:13px;margin-bottom:10px;"></select>
         <div class="muted" style="font-size:12px;margin-bottom:4px;">插入高度</div>
         <input type="range" id="bouquetHeightSlider" min="0" max="100" style="width:100%;">
         <div class="muted" style="font-size:12px;margin:10px 0 4px;">傾斜角度</div>
@@ -449,6 +450,7 @@
 
       <div style="margin-top:16px;">
         <div class="muted" style="margin-bottom:6px;" id="bouquetPickerLabel">點選花材加入花束（最多 12 支）</div>
+        <div class="bouquet-toggle-row" id="bouquetPickerCatToggle" style="margin-bottom:10px;"></div>
         <div class="cat-nav" id="bouquetPicker" style="margin-top:0;"></div>
       </div>
 
@@ -1068,10 +1070,36 @@ function initBouquet(){
   renderVaseShapeToggle();
   renderVaseSwatches();
   renderSizeToggle();
+  renderBouquetPickerCatToggle();
   renderBouquetPicker();
   renderBouquetStage();
   bindBouquetDrag();
   BOUQUET_INITED = true;
+}
+
+// 花材分類（仿照參考網站的 主花/配花/葉材）：沿用既有的 detectFlowerType 判斷——
+// leaf 歸葉材、spray（滿天星/小蒼蘭這類一叢一叢的小花）歸配花，其餘（玫瑰/鬱金香/菊花等主體花型）歸主花。
+const BOUQUET_PICKER_CATS = [
+  { key: 'main', label: '主花' },
+  { key: 'filler', label: '配花' },
+  { key: 'foliage', label: '葉材' },
+];
+let BOUQUET_PICKER_CAT = 'main';
+function pickerCategoryFor(name){
+  const type = detectFlowerType(name);
+  if (type === 'leaf') return 'foliage';
+  if (type === 'spray') return 'filler';
+  return 'main';
+}
+function renderBouquetPickerCatToggle(){
+  const box = document.getElementById('bouquetPickerCatToggle');
+  if (!box) return;
+  box.innerHTML = BOUQUET_PICKER_CATS.map(c => `<div class="bouquet-toggle small ${BOUQUET_PICKER_CAT===c.key?'active':''}" onclick="setBouquetPickerCat('${c.key}')">${c.label}</div>`).join('');
+}
+function setBouquetPickerCat(key){
+  BOUQUET_PICKER_CAT = key;
+  renderBouquetPickerCatToggle();
+  renderBouquetPicker();
 }
 
 function renderVaseShapeToggle(){
@@ -1127,7 +1155,9 @@ function renderBouquetPicker(){
   if (!box) return;
   if (!PRODUCTS || PRODUCTS.length === 0) { box.innerHTML = '<div class="muted">花材載入中，請先切到「訂花」分頁載入後再回來</div>'; return; }
   const full = BOUQUET_ITEMS.length >= BOUQUET_MAX;
-  box.innerHTML = PRODUCTS.map(p => `
+  const list = PRODUCTS.filter(p => pickerCategoryFor(p.name) === BOUQUET_PICKER_CAT);
+  if (list.length === 0) { box.innerHTML = '<div class="muted">這個分類目前沒有花材</div>'; return; }
+  box.innerHTML = list.map(p => `
     <div class="bouquet-picker-chip ${full ? 'disabled' : ''}" onclick="addToBouquet('${p.sku}')">
       ${flowerArtHtml(p.name)}
       ${p.name}
@@ -1225,6 +1255,7 @@ function randomBouquet(){
   renderBouquetStage();
   showBouquetName();
   hideBouquetSummary();
+  selectBouquetItem(BOUQUET_ITEMS.length ? BOUQUET_ITEMS[0].id : null);
 }
 
 function showBouquetName(){
@@ -1276,28 +1307,33 @@ function addBouquetToCart(){
   switchTab('catalog');
 }
 
-// 點選某支花：顯示虛線選取圈，並打開下方的「插入高度／傾斜角度」調整面板（仿照參考網站的 Adjust 頁籤）
+// 點選某支花（或用下方下拉選單切換）：顯示虛線選取圈，並打開下方的「插入高度／傾斜角度」調整面板
+// （仿照參考網站的 Adjust 頁籤，包含一個可以直接切換要調整哪支花的下拉選單，不用每次都回畫布上點選）
 function selectBouquetItem(id){
   BOUQUET_SELECTED_ID = id;
-  const stage = document.getElementById('bouquetStage');
-  if (stage) {
-    stage.querySelectorAll('.bouquet-flower.selected').forEach(el => el.classList.remove('selected'));
-    if (id != null) {
-      const el = stage.querySelector(`.bouquet-flower[data-flower-id="${id}"]`);
-      if (el) el.classList.add('selected');
-    }
-  }
   renderAdjustPanel();
 }
 
 function renderAdjustPanel(){
   const panel = document.getElementById('bouquetAdjustPanel');
+  const stage = document.getElementById('bouquetStage');
   if (!panel) return;
-  const item = BOUQUET_ITEMS.find(it => it.id === BOUQUET_SELECTED_ID);
-  if (!item) { panel.style.display = 'none'; return; }
+  if (BOUQUET_ITEMS.length === 0) { panel.style.display = 'none'; BOUQUET_SELECTED_ID = null; return; }
+  // 選取的花如果已經被移除（或還沒選過），退而求其次調整最後加入的那支，讓面板不會憑空消失
+  let item = BOUQUET_ITEMS.find(it => it.id === BOUQUET_SELECTED_ID);
+  if (!item) item = BOUQUET_ITEMS[BOUQUET_ITEMS.length - 1];
+  BOUQUET_SELECTED_ID = item.id;
+  if (stage) {
+    stage.querySelectorAll('.bouquet-flower.selected').forEach(el => el.classList.remove('selected'));
+    const el = stage.querySelector(`.bouquet-flower[data-flower-id="${item.id}"]`);
+    if (el) el.classList.add('selected');
+  }
   panel.style.display = '';
-  const title = document.getElementById('bouquetAdjustTitle');
-  if (title) title.textContent = `調整：${item.name}`;
+  const select = document.getElementById('bouquetAdjustSelect');
+  if (select) {
+    select.innerHTML = BOUQUET_ITEMS.map((it, idx) => `<option value="${it.id}" ${it.id===item.id?'selected':''}>${idx+1}．${it.name}</option>`).join('');
+    select.onchange = () => selectBouquetItem(Number(select.value));
+  }
   const topY = currentVaseTopY();
   const heightSlider = document.getElementById('bouquetHeightSlider');
   if (heightSlider) {
@@ -1428,7 +1464,7 @@ function bindBouquetDrag(){
     if (el) el.classList.remove('dragging');
     if (!moved) {
       // 沒有拖動，視為點擊 → 選取該花，打開下方調整面板
-      selectBouquetItem(id === BOUQUET_SELECTED_ID ? null : id);
+      selectBouquetItem(id);
     } else {
       const item = BOUQUET_ITEMS.find(it => it.id === id);
       if (item) item.z = ++BOUQUET_Z_SEQ; // 拖曳過的花浮到最上層
