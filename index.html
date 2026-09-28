@@ -993,11 +993,14 @@ const VASE_SHAPES = [
   { key: 'mini', label: '迷你瓶', cat: 'vase', width: 100, height: 80,
     clip: 'polygon(10% 0%,90% 0%,82% 100%,18% 100%)', xLimit: 26 },
   { key: 'slender', label: '修長瓶', cat: 'vase', width: 90, height: 190,
-    clip: 'polygon(30% 0%,70% 0%,58% 100%,42% 100%)', xLimit: 8 },
+    clip: 'polygon(30% 0%,70% 0%,58% 100%,42% 100%)', xLimit: 6 },
+  // 花束（紙包/裸束）跟花器相反：開口寬的一端在「上面」（花頭從這裡散開），
+  // 綁繩／收口的一端在「下面」，所以花莖必須整段收在這個很窄的收口內，
+  // xLimit 要用底部收口的寬度算，不能沿用花器的算法（之前算太寬，導致花莖從兩側穿出去）。
   { key: 'paper', label: '紙包花束', cat: 'bouquet', width: 140, height: 150,
-    clip: 'polygon(6% 0%,94% 0%,58% 100%,42% 100%)', xLimit: 18 },
+    clip: 'polygon(6% 0%,94% 0%,58% 100%,42% 100%)', xLimit: 7 },
   { key: 'naked', label: '裸束', cat: 'bouquet', width: 90, height: 130,
-    clip: 'polygon(20% 0%,80% 0%,54% 100%,46% 100%)', xLimit: 8 },
+    clip: 'polygon(20% 0%,80% 0%,54% 100%,46% 100%)', xLimit: 3 },
   { key: 'mug', label: '馬克杯', cat: 'fun', width: 120, height: 100,
     clip: 'polygon(8% 0%,92% 0%,88% 100%,12% 100%)', xLimit: 40 },
   { key: 'tv', label: '復古電視', cat: 'fun', width: 150, height: 110,
