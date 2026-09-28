@@ -730,6 +730,12 @@ function enterApp(){
   document.getElementById('ownerLabel').textContent = SHOP.owner || '';
   loadCatalog();
   loadBatchInfo();
+  try {
+    const lastTab = sessionStorage.getItem('ff_last_tab');
+    if (lastTab && lastTab !== 'catalog' && ['catalog','orders','bouquet'].includes(lastTab)) {
+      switchTab(lastTab);
+    }
+  } catch(e) {}
 }
 
 let BATCH_COUNTDOWN_TIMER = null;
@@ -800,6 +806,7 @@ function switchTab(name){
   if (name === 'bouquet') initBouquet();
   document.getElementById(btns[name]).scrollIntoView({behavior:'smooth', block:'start'});
   updateCartBar();
+  try { sessionStorage.setItem('ff_last_tab', name); } catch(e){}
 }
 
 function switchAdminTab(name){
@@ -1293,9 +1300,9 @@ function renderBouquetStage(){
   stage.innerHTML = `
     <div class="bouquet-rig">
       <div class="bouquet-ground-shadow"></div>
-      ${stems}
       ${containerHtml}
     </div>
+    ${stems}
     ${flowers}`;
 }
 
