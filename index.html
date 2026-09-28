@@ -2,13 +2,14 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>艸｜荷蘭花選 FlowerForce</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAiIGZpbGw9IiNGRkZERjgiIHN0cm9rZT0iI0IwOEEzRSIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPHRleHQgeD0iMzIiIHk9IjQ0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iR2VvcmdpYSwgJ05vdG8gU2VyaWYgVEMnLCBzZXJpZiIgZm9udC1zaXplPSIzNCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzMzNDIyRiI+6Im4PC90ZXh0Pgo8L3N2Zz4K">
 <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRkZGREY4Ii8+CiAgPHRleHQgeD0iMzIiIHk9IjQ0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iR2VvcmdpYSwgJ05vdG8gU2VyaWYgVEMnLCBzZXJpZiIgZm9udC1zaXplPSIzNCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzMzNDIyRiI+6Im4PC90ZXh0Pgo8L3N2Zz4K">
 <meta name="theme-color" content="#4B5D45">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="艸．荷蘭花選">
 <link rel="manifest" href='data:application/manifest+json,{"name":"艸．荷蘭花選 FlowerForce","short_name":"艸","start_url":".","display":"standalone","background_color":"%23FFFDF8","theme_color":"%234B5D45"}'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,12 +43,17 @@
     .hero, .hero h1.title{color:#F4F1E6 !important;}
   }
   *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+  html, body{width:100%;max-width:100%;overflow-x:hidden;}
   body{margin:0;background:
     radial-gradient(1200px 400px at 50% -80px, #FFFCF4 0%, transparent 60%),
     var(--ground);
     color:var(--ink);font-family:"PingFang TC","Microsoft JhengHei",sans-serif;
+    padding-top:env(safe-area-inset-top);
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
   }
-  .wrap{max-width:640px;margin:0 auto;padding:16px 16px 48px;}
+  .wrap{max-width:640px;margin:0 auto;padding:16px 16px calc(48px + env(safe-area-inset-bottom));}
   .brandmark{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 2px;}
   .brandmark .glyph{
     width:40px;height:40px;border-radius:50%;
@@ -162,7 +168,7 @@
   .cart-bar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:none;
     background:var(--leaf-dark);color:#FBF8EF;box-shadow:0 -4px 14px rgba(0,0,0,.14);}
   .cart-bar.show{display:flex;}
-  .cart-bar-inner{max-width:640px;margin:0 auto;width:100%;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .cart-bar-inner{max-width:640px;margin:0 auto;width:100%;padding:11px 16px calc(11px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .cart-bar .cb-info{font-size:12.5px;line-height:1.4;}
   .cart-bar .cb-info .n{font-family:var(--font-serif);font-weight:700;font-size:14.5px;color:var(--gold-tint);}
   .cart-bar .cb-info .amt{color:rgba(251,248,239,.8);}
@@ -203,7 +209,7 @@
   .retry-btn{margin-left:8px;}
   .items-total{display:flex;justify-content:space-between;padding-top:8px;margin-top:4px;border-top:1px solid var(--line);font-weight:700;font-size:13px;color:var(--leaf-dark);}
 
-  .toast-wrap{position:fixed;left:0;right:0;bottom:18px;z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
+  .toast-wrap{position:fixed;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));z-index:80;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
   .toast{background:var(--leaf-dark);color:#FBF8EF;padding:10px 18px;border-radius:24px;font-size:12.5px;box-shadow:0 6px 16px rgba(0,0,0,.18);opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease;max-width:88vw;text-align:center;}
   .toast.error{background:#B23A48;}
   .toast.show{opacity:1;transform:translateY(0);}
@@ -222,8 +228,8 @@
   .top-fab{position:fixed;right:16px;bottom:78px;width:40px;height:40px;border-radius:50%;background:var(--leaf-dark);color:#FBF8EF;border:none;
     display:none;align-items:center;justify-content:center;font-size:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);cursor:pointer;z-index:15;}
   .top-fab.show{display:flex;}
-  body.has-cart-bar .top-fab{bottom:78px;}
-  body:not(.has-cart-bar) .top-fab{bottom:18px;}
+  body.has-cart-bar .top-fab{bottom:calc(78px + env(safe-area-inset-bottom));}
+  body:not(.has-cart-bar) .top-fab{bottom:calc(18px + env(safe-area-inset-bottom));}
 
   .lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;z-index:70;padding:24px;cursor:zoom-out;}
   .lightbox-overlay img{max-width:100%;max-height:100%;border-radius:6px;}
@@ -549,7 +555,12 @@
 </div>
 
 <script>
+let LAST_TOAST_KEY = '', LAST_TOAST_AT = 0;
 function showToast(message, type){
+  const key = message + '|' + (type || '');
+  const now = Date.now();
+  if (key === LAST_TOAST_KEY && now - LAST_TOAST_AT < 1500) return; // 避免同一則訊息短時間內重複疊出
+  LAST_TOAST_KEY = key; LAST_TOAST_AT = now;
   let wrap = document.getElementById('toastWrap');
   if (!wrap) {
     wrap = document.createElement('div');
@@ -830,6 +841,7 @@ async function loadCatalog(){
     renderCats();
     renderCatalog();
     updateCartBar();
+    if (BOUQUET_INITED) renderBouquetPicker(); // 花材若在創意搭花分頁載入完成前就先打開，載完後把選材清單補上
   } catch(e) {
     document.getElementById('catalogList').innerHTML = `載入失敗：${e.message} <button class="tiny retry-btn" onclick="loadCatalog()">重試</button>`;
   }
