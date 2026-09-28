@@ -25,6 +25,22 @@
     --font-serif:'Playfair Display','Noto Serif TC',serif;
     --font-display:'Cormorant Garamond','Noto Serif TC',serif;
   }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#1C201A; --surface:#252B22; --ink:#EDE8DC; --ink-soft:#A39C8C;
+      --line:#3C4436; --line-soft:#2F362A;
+      --leaf:#7FA372; --leaf-dark:#8FB081; --leaf-tint:#2B3326;
+      --rose:#D69686; --rose-dark:#E2A692; --rose-tint:#3A2A25;
+      --gold:#D9BC7A; --gold-tint:#3A331E;
+      --ok:#8FCB9B; --ok-tint:#213B26;
+      --wait:#E0B563; --wait-tint:#3A2F18;
+    }
+    body{background:radial-gradient(1200px 400px at 50% -80px, #232920 0%, transparent 60%), var(--ground);}
+    input, textarea{background:#1E231C !important; color:var(--ink) !important;}
+    button.primary, .cat-nav .cat-item.active, .chip.active, .cart-bar, .toast, .top-fab,
+    .product-card .picked-flag, .product-card .thumb-wrap .low-flag, .product-card .thumb-wrap .tag-flag{color:#1C201A !important;}
+    .hero, .hero h1.title{color:#F4F1E6 !important;}
+  }
   *{box-sizing:border-box;}
   body{margin:0;background:
     radial-gradient(1200px 400px at 50% -80px, #FFFCF4 0%, transparent 60%),
