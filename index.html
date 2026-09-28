@@ -434,7 +434,8 @@
       </div>
 
       <div style="margin-top:16px;">
-        <div class="muted" style="margin-bottom:6px;">花瓶造型</div>
+        <div class="muted" style="margin-bottom:6px;">選擇容器</div>
+        <div class="bouquet-toggle-row" id="vaseCatToggle" style="margin-bottom:8px;"></div>
         <div class="bouquet-toggle-row" id="vaseShapeToggle"></div>
       </div>
 
@@ -974,13 +975,33 @@ const VASE_STYLES = [
 // 每種花瓶造型的固定幾何（px，跟螢幕寬度無關，所以在任何手機上瓶口位置都一致）。
 // xLimit 是「花莖水平位移上限」，用瓶身輪廓在最窄處（通常是瓶底）的一半寬度再扣掉一點安全邊界算出來，
 // 這樣不管花莖從畫布下方一路往上穿過瓶身的哪個高度，都保證還在瓶身輪廓內，絕對不會露出瓶身外側懸空。
+// 容器分三大類（仿照參考網站的「花器／花束／想像力」）：花器是傳統瓶身，花束是包花紙/裸束的錐形，
+// 想像力則是有趣的造型容器；三類共用同一套「花莖被容器輪廓擋住」的機制，只是輪廓形狀不同。
+const VASE_CATS = [
+  { key: 'vase', label: '花器' },
+  { key: 'bouquet', label: '花束' },
+  { key: 'fun', label: '想像力' },
+];
+let BOUQUET_VASE_CAT = 'vase';
 const VASE_SHAPES = [
-  { key: 'classic', label: '經典瓶', width: 156, height: 120,
+  { key: 'classic', label: '經典瓶', cat: 'vase', width: 156, height: 120,
     clip: 'polygon(10% 0%,90% 0%,82% 100%,18% 100%)', xLimit: 44 },
-  { key: 'bottle', label: '長頸瓶', width: 108, height: 172,
+  { key: 'bottle', label: '長頸瓶', cat: 'vase', width: 108, height: 172,
     clip: 'polygon(24% 0%,76% 0%,60% 100%,40% 100%)', xLimit: 10 },
-  { key: 'bowl', label: '寬口盆', width: 172, height: 92,
+  { key: 'bowl', label: '寬口盆', cat: 'vase', width: 172, height: 92,
     clip: 'polygon(6% 0%,94% 0%,74% 100%,26% 100%)', xLimit: 32 },
+  { key: 'mini', label: '迷你瓶', cat: 'vase', width: 100, height: 80,
+    clip: 'polygon(10% 0%,90% 0%,82% 100%,18% 100%)', xLimit: 26 },
+  { key: 'slender', label: '修長瓶', cat: 'vase', width: 90, height: 190,
+    clip: 'polygon(30% 0%,70% 0%,58% 100%,42% 100%)', xLimit: 8 },
+  { key: 'paper', label: '紙包花束', cat: 'bouquet', width: 140, height: 150,
+    clip: 'polygon(6% 0%,94% 0%,58% 100%,42% 100%)', xLimit: 18 },
+  { key: 'naked', label: '裸束', cat: 'bouquet', width: 90, height: 130,
+    clip: 'polygon(20% 0%,80% 0%,54% 100%,46% 100%)', xLimit: 8 },
+  { key: 'mug', label: '馬克杯', cat: 'fun', width: 120, height: 100,
+    clip: 'polygon(8% 0%,92% 0%,88% 100%,12% 100%)', xLimit: 40 },
+  { key: 'tv', label: '復古電視', cat: 'fun', width: 150, height: 110,
+    clip: 'polygon(4% 0%,96% 0%,90% 100%,10% 100%)', xLimit: 55 },
 ];
 const VASE_BOTTOM = 18; // 花瓶底部離畫布底邊的固定距離
 function currentVaseShape(){ return VASE_SHAPES.find(s => s.key === BOUQUET_VASE_SHAPE) || VASE_SHAPES[0]; }
@@ -1067,6 +1088,7 @@ function flowerArtHtml(name){
 }
 
 function initBouquet(){
+  renderVaseCatToggle();
   renderVaseShapeToggle();
   renderVaseSwatches();
   renderSizeToggle();
@@ -1102,10 +1124,28 @@ function setBouquetPickerCat(key){
   renderBouquetPicker();
 }
 
+function renderVaseCatToggle(){
+  const box = document.getElementById('vaseCatToggle');
+  if (!box) return;
+  box.innerHTML = VASE_CATS.map(c => `<div class="bouquet-toggle small ${BOUQUET_VASE_CAT===c.key?'active':''}" onclick="setVaseCat('${c.key}')">${c.label}</div>`).join('');
+}
+
+function setVaseCat(key){
+  BOUQUET_VASE_CAT = key;
+  renderVaseCatToggle();
+  const list = VASE_SHAPES.filter(s => s.cat === key);
+  if (list.length && !list.some(s => s.key === BOUQUET_VASE_SHAPE)) {
+    setVaseShape(list[0].key);
+  } else {
+    renderVaseShapeToggle();
+  }
+}
+
 function renderVaseShapeToggle(){
   const box = document.getElementById('vaseShapeToggle');
   if (!box) return;
-  box.innerHTML = VASE_SHAPES.map(s => `<div class="bouquet-toggle small ${BOUQUET_VASE_SHAPE===s.key?'active':''}" onclick="setVaseShape('${s.key}')">${s.label}</div>`).join('');
+  const list = VASE_SHAPES.filter(s => s.cat === BOUQUET_VASE_CAT);
+  box.innerHTML = list.map(s => `<div class="bouquet-toggle small ${BOUQUET_VASE_SHAPE===s.key?'active':''}" onclick="setVaseShape('${s.key}')">${s.label}</div>`).join('');
 }
 
 // 換造型時，把畫布上既有的花重新夾進新造型的安全範圍內（水平位移、露出瓶口高度都依比例換算），
@@ -1236,7 +1276,9 @@ function randomBouquet(){
   if (!PRODUCTS || PRODUCTS.length === 0) { showToast('花材還沒載入完成，請稍後再試', 'error'); return; }
   BOUQUET_ITEMS = [];
   selectBouquetItem(null);
-  BOUQUET_VASE_SHAPE = VASE_SHAPES[Math.floor(Math.random() * VASE_SHAPES.length)].key;
+  const randomShape = VASE_SHAPES[Math.floor(Math.random() * VASE_SHAPES.length)];
+  BOUQUET_VASE_SHAPE = randomShape.key;
+  BOUQUET_VASE_CAT = randomShape.cat;
   BOUQUET_VASE_COLOR = VASE_STYLES[Math.floor(Math.random() * VASE_STYLES.length)].color;
   const pool = PRODUCTS.slice().sort(() => Math.random() - 0.5);
   const count = Math.min(pool.length, BOUQUET_MAX, 5 + Math.floor(Math.random() * 6));
@@ -1249,6 +1291,7 @@ function randomBouquet(){
       xOff: pos.xOff, headBottom: pos.headBottom, rot: pos.rot, z: ++BOUQUET_Z_SEQ,
     });
   }
+  renderVaseCatToggle();
   renderVaseShapeToggle();
   renderVaseSwatches();
   renderBouquetPicker();
