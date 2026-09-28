@@ -284,7 +284,10 @@
     border-radius:50%;background:rgba(0,0,0,.16);filter:blur(4px);z-index:1;}
 
   /* 花莖：z-index 5，低於容器(10)，落在容器輪廓內的莖會被容器擋住，露出瓶口以上的部分才看得到 */
-  .bouquet-stem-line{position:absolute;width:2.4px;background:#5B7A52;transform-origin:bottom center;z-index:5;border-radius:2px;}
+  /* 花莖用 SVG 對角線畫，從花頭位置一路收攏到瓶口/紙包裝的中心點，這樣不管花頭往左右分散多開，
+     莖都會確實插進容器的開口，不會出現「莖在半空中、跟容器對不上」的懸空感 */
+  .bouquet-stem-box{position:absolute;z-index:5;pointer-events:none;}
+  .bouquet-stem-box svg{width:100%;height:100%;display:block;overflow:visible;}
 
   .bouquet-flower{position:absolute;cursor:grab;transition:filter .15s ease;user-select:none;touch-action:none;
     filter:drop-shadow(0 3px 4px rgba(0,0,0,.22));}
@@ -1054,6 +1057,25 @@ function currentNeckY(){
   return WRAP_NECK_TOP;
 }
 
+// 畫一支花莖：從花頭所在的 leftPct 位置，一路收攏到容器開口正中央（50%），確保不管花頭分散多開，
+// 莖的下端永遠準確插進瓶口/紙包裝中心，不會出現莖對不上容器、懸空的狀況。
+// 用一個「橫跨兩端 x 座標範圍」的容器 + viewBox 0-100 不保留比例的 SVG 對角線來畫，
+// 這樣不需要知道畫面實際像素寬度也能正確算出角度。
+function stemLineHtml(item, stemBaseY){
+  const topX = item.leftPct;
+  const bottomX = 50;
+  const topY = item.headBottom;
+  const left = Math.min(topX, bottomX);
+  const width = Math.max(0.8, Math.abs(topX - bottomX));
+  const height = Math.max(6, topY - stemBaseY);
+  const topIsRight = topX >= bottomX;
+  const x1 = topIsRight ? 100 : 0; // svg y=0（頂端，對應花頭這一端）
+  const x2 = topIsRight ? 0 : 100; // svg y=100（底端，對應容器中心）
+  return `<div class="bouquet-stem-box" data-stem-id="${item.id}" style="left:${left}%;width:${width}%;bottom:${stemBaseY}px;height:${height.toFixed(0)}px;">
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="${x1}" y1="0" x2="${x2}" y2="100" stroke="#5B7A52" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>
+  </div>`;
+}
+
 function initBouquet(){
   renderContainerTypeToggle();
   renderVaseShapeToggle();
@@ -1251,11 +1273,7 @@ function renderBouquetStage(){
     return;
   }
 
-  const stems = BOUQUET_ITEMS.map(item => {
-    const h = Math.max(6, item.headBottom - stemBaseY);
-    return `<div class="bouquet-stem-line" data-stem-id="${item.id}" style="left:${item.leftPct}%;bottom:${stemBaseY}px;height:${h.toFixed(0)}px;
-      transform:translateX(-50%) rotate(${(item.rot * 0.3).toFixed(1)}deg);"></div>`;
-  }).join('');
+  const stems = BOUQUET_ITEMS.map(item => stemLineHtml(item, stemBaseY)).join('');
 
   const flowers = BOUQUET_ITEMS.map(item => {
     const depth = depthFor(item.headBottom, neckY);
@@ -1318,13 +1336,8 @@ function bindBouquetDrag(){
     item.leftPct = leftPct;
     item.headBottom = headBottom;
     const flowerEl = stage.querySelector(`.bouquet-flower[data-flower-id="${item.id}"]`);
-    const stemEl = stage.querySelector(`.bouquet-stem-line[data-stem-id="${item.id}"]`);
     if (flowerEl) { flowerEl.style.left = leftPct + '%'; flowerEl.style.bottom = headBottom.toFixed(0) + 'px'; }
-    if (stemEl) {
-      const stemBaseY = 24;
-      stemEl.style.left = leftPct + '%';
-      stemEl.style.height = Math.max(6, headBottom - stemBaseY).toFixed(0) + 'px';
-    }
+    // 莖是對角線（收攏到容器中心），拖曳當下先不即時重算，放開時 renderBouquetStage() 會重畫成正確角度
   });
 
   const endDrag = (e) => {
