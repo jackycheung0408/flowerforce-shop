@@ -44,8 +44,7 @@
   }
   *{box-sizing:border-box;}
   html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
-  html, body{width:100%;max-width:100%;overflow-x:hidden;}
-  body{margin:0;background:
+  body{overflow-x:hidden;margin:0;background:
     radial-gradient(1200px 400px at 50% -80px, #FFFCF4 0%, transparent 60%),
     var(--ground);
     color:var(--ink);font-family:"PingFang TC","Microsoft JhengHei",sans-serif;
@@ -93,7 +92,11 @@
   .badge-wait{background:var(--wait-tint);color:var(--wait);padding:2px 9px;border-radius:20px;font-size:12px;letter-spacing:.5px;}
   #loginScreen{max-width:360px;margin:56px auto 0;text-align:center;}
   .divider-flourish{text-align:center;color:var(--gold);font-size:14px;margin:10px 0 18px;letter-spacing:6px;}
-  .topbar{display:flex;justify-content:space-between;align-items:center;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 10px;}
+  .topbar .brandmark{min-width:0;flex:1 1 auto;}
+  .topbar .brandmark .brandtext{min-width:0;overflow:hidden;}
+  .topbar .brandmark .brandtext .zh{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbar button.secondary{flex-shrink:0;}
   .footer-mark{text-align:center;margin-top:28px;color:var(--ink-soft);font-family:var(--font-display);font-style:italic;font-size:13px;letter-spacing:1px;}
   .footer-mark .line{width:120px;height:1px;margin:8px auto;background:linear-gradient(90deg,transparent,var(--line),transparent);}
 
@@ -352,7 +355,7 @@
     </div>
 
     <div class="card" id="batchInfoCard" style="margin-top:14px;padding:14px 16px;display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
         <div>
           <div style="font-weight:700;font-family:var(--font-serif);color:var(--leaf-dark);">本批次訂購截止</div>
           <div class="muted" id="batchCutoffLabel">載入中...</div>
@@ -500,7 +503,7 @@
     </div>
 
     <div id="adminBatchPane" class="card" style="border-top-left-radius:0;margin-top:0;display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
         <h2 style="margin:0;">批次採購彙總</h2>
         <button class="tiny" onclick="exportBatchCSV()">匯出 CSV</button>
       </div>
