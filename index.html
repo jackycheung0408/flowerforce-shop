@@ -259,6 +259,10 @@
     box-shadow:inset -14px 0 26px rgba(0,0,0,.18), inset 12px 0 18px rgba(255,255,255,.3);}
   .bouquet-vase::after{content:'';position:absolute;left:20%;top:8%;bottom:6%;width:8%;border-radius:6px;
     background:linear-gradient(180deg,rgba(255,255,255,.55),transparent 75%);}
+  /* 瓶口/開口的橢圓陰影，讓容器看起來是「中空可以放花」而不是實心色塊——這是跟範例網站比起來
+     視覺落差最大的一個細節，加了這個之後容器一眼看起來就有「開口」的深度感 */
+  .bouquet-vase-rim{position:absolute;left:50%;top:0;border-radius:50%;pointer-events:none;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,.42) 0%, rgba(0,0,0,.16) 55%, transparent 82%);}
   .bouquet-vase-water{position:absolute;left:14%;right:14%;bottom:5%;height:30%;border-radius:0 0 10px 10px;
     background:linear-gradient(180deg, rgba(150,190,200,.35), rgba(120,165,180,.45));opacity:0;}
 
@@ -984,28 +988,28 @@ const VASE_CATS = [
 ];
 let BOUQUET_VASE_CAT = 'vase';
 const VASE_SHAPES = [
-  { key: 'classic', label: '經典瓶', cat: 'vase', width: 156, height: 120,
+  { key: 'classic', label: '經典瓶', cat: 'vase', width: 156, height: 120, rimPct: 80,
     clip: 'polygon(10% 0%,90% 0%,82% 100%,18% 100%)', xLimit: 44 },
-  { key: 'bottle', label: '長頸瓶', cat: 'vase', width: 108, height: 172,
+  { key: 'bottle', label: '長頸瓶', cat: 'vase', width: 108, height: 172, rimPct: 52,
     clip: 'polygon(24% 0%,76% 0%,60% 100%,40% 100%)', xLimit: 10 },
-  { key: 'bowl', label: '寬口盆', cat: 'vase', width: 172, height: 92,
+  { key: 'bowl', label: '寬口盆', cat: 'vase', width: 172, height: 92, rimPct: 88,
     clip: 'polygon(6% 0%,94% 0%,74% 100%,26% 100%)', xLimit: 32 },
-  { key: 'mini', label: '迷你瓶', cat: 'vase', width: 100, height: 80,
+  { key: 'mini', label: '迷你瓶', cat: 'vase', width: 100, height: 80, rimPct: 80,
     clip: 'polygon(10% 0%,90% 0%,82% 100%,18% 100%)', xLimit: 26 },
-  { key: 'slender', label: '修長瓶', cat: 'vase', width: 90, height: 190,
+  { key: 'slender', label: '修長瓶', cat: 'vase', width: 90, height: 190, rimPct: 40,
     clip: 'polygon(30% 0%,70% 0%,58% 100%,42% 100%)', xLimit: 6 },
   // 花束（紙包/裸束）實際去看範例網站，跟花器完全不是同一種比例：包裝紙幾乎佔滿整個畫布高度，
   // 上緣是攤開的兩片紙尖（開口寬），往下收成一個很窄的綁繩結，結下面再垂出一小截尾巴，
   // 花莖幾乎整段都被包在紙裡看不到，只有花頭從最上面的開口露出來一點點——
   // 所以容器要做得夠「高」（接近畫布可用高度），花莖露出的高度上限也要跟著調低（visibleMax），
   // 不能沿用花器那種矮胖瓶身的比例，不然花莖看起來就會像從一個小罐子裡插出一大截棍子。
-  { key: 'paper', label: '紙包花束', cat: 'bouquet', width: 130, height: 220, visibleMax: 50,
+  { key: 'paper', label: '紙包花束', cat: 'bouquet', width: 130, height: 220, visibleMax: 50, rimPct: 80,
     clip: 'polygon(10% 0%,90% 0%,58% 72%,58% 100%,42% 100%,42% 72%)', xLimit: 7 },
-  { key: 'naked', label: '裸束', cat: 'bouquet', width: 90, height: 170, visibleMax: 50,
+  { key: 'naked', label: '裸束', cat: 'bouquet', width: 90, height: 170, visibleMax: 50, rimPct: 60,
     clip: 'polygon(20% 0%,80% 0%,54% 68%,54% 100%,46% 100%,46% 68%)', xLimit: 3 },
-  { key: 'mug', label: '馬克杯', cat: 'fun', width: 120, height: 100,
+  { key: 'mug', label: '馬克杯', cat: 'fun', width: 120, height: 100, rimPct: 84,
     clip: 'polygon(8% 0%,92% 0%,88% 100%,12% 100%)', xLimit: 40 },
-  { key: 'tv', label: '復古電視', cat: 'fun', width: 150, height: 110,
+  { key: 'tv', label: '復古電視', cat: 'fun', width: 150, height: 110, rimPct: 92,
     clip: 'polygon(4% 0%,96% 0%,90% 100%,10% 100%)', xLimit: 55 },
 ];
 const VASE_BOTTOM = 18; // 花瓶底部離畫布底邊的固定距離
@@ -1059,38 +1063,78 @@ function flowerColorFor(name, type){
   const palette = FLOWER_PALETTES[type] || FLOWER_PALETTES.rose;
   return palette[hashStr(name + '#') % palette.length];
 }
-function flowerSvg(type, color){
+// 淺色/深色微調：讓每種花不是單一平塗色，而是有明暗層次，看起來比較像實體花瓣而不是塑膠色塊
+function shadeHex(hex, amt){
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const num = parseInt(m[1], 16);
+  let r = (num >> 16) + amt, g = ((num >> 8) & 0xFF) + amt, b = (num & 0xFF) + amt;
+  r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+  return '#' + (r < 16 ? '0' : '') + r.toString(16) + (g < 16 ? '0' : '') + g.toString(16) + (b < 16 ? '0' : '') + b.toString(16);
+}
+let FLOWER_GRAD_SEQ = 0;
+function flowerSvg(type, color, seed){
+  const gid = 'fg' + (++FLOWER_GRAD_SEQ);
+  const light = shadeHex(color, 34), dark = shadeHex(color, -38);
+  const grad = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="${light}"/><stop offset="55%" stop-color="${color}"/><stop offset="100%" stop-color="${dark}"/>
+  </linearGradient></defs>`;
+  const fill = `url(#${gid})`;
   const stem = `<path d="M20 40 L20 68" stroke="#5B7A52" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
   const leafDeco = `<path d="M20 52 Q9 49 7 58 Q17 59 20 52 Z" fill="#5B7A52"/>`;
   let head = '';
   if (type === 'rose') {
-    head = `<circle cx="20" cy="21" r="13" fill="${color}"/>
-      <circle cx="20" cy="21" r="9" fill="${color}" opacity=".75"/>
-      <circle cx="20" cy="21" r="5" fill="${color}" opacity=".95"/>`;
+    head = `<circle cx="20" cy="21" r="13" fill="${fill}"/>
+      <circle cx="20" cy="21" r="9" fill="${dark}" opacity=".55"/>
+      <circle cx="20" cy="21" r="5" fill="${light}" opacity=".8"/>`;
   } else if (type === 'tulip') {
-    head = `<path d="M20 6 C9 6 7 22 14 31 C16 24 24 24 26 31 C33 22 31 6 20 6 Z" fill="${color}"/>`;
+    head = `<path d="M20 6 C9 6 7 22 14 31 C16 24 24 24 26 31 C33 22 31 6 20 6 Z" fill="${fill}" stroke="${dark}" stroke-width=".6"/>`;
   } else if (type === 'daisy') {
     let petals = '';
     for (let i = 0; i < 8; i++) {
       const a = i * 45;
-      petals += `<ellipse cx="20" cy="12" rx="4.4" ry="8" fill="${color}" stroke="#E4DBC4" stroke-width=".4" transform="rotate(${a} 20 21)"/>`;
+      petals += `<ellipse cx="20" cy="12" rx="4.4" ry="8" fill="${fill}" stroke="${dark}" stroke-width=".4" transform="rotate(${a} 20 21)"/>`;
     }
     head = petals + `<circle cx="20" cy="21" r="5.2" fill="#E8B74E"/>`;
   } else if (type === 'spray') {
     let dots = '';
     const pos = [[20,10],[12,16],[28,16],[9,26],[31,26],[20,26]];
-    pos.forEach(([cx,cy]) => { dots += `<circle cx="${cx}" cy="${cy}" r="3.6" fill="${color}" stroke="#E4D9BE" stroke-width=".6"/>`; });
+    pos.forEach(([cx,cy]) => { dots += `<circle cx="${cx}" cy="${cy}" r="3.6" fill="${fill}" stroke="${dark}" stroke-width=".5"/>`; });
     head = dots;
+  } else if (type === 'eucalyptus') {
+    // 尤加利：一對對圓形葉片沿著莖交錯排列（仿真實尤加利葉材，跟一般三角形葉子明顯不同）
+    const pairs = [[16],[26],[36],[46],[56]];
+    let leaves = '';
+    pairs.forEach(([y], i) => {
+      const side = i % 2 === 0 ? 1 : -1;
+      leaves += `<ellipse cx="${20 + side*8}" cy="${y}" rx="6" ry="5.4" fill="${fill}" stroke="${dark}" stroke-width=".5" transform="rotate(${side*20} ${20+side*8} ${y})"/>`;
+    });
+    head = leaves;
+  } else if (type === 'fern') {
+    // 蕨葉：中軸兩側一整排小葉片（羽狀複葉），視覺上比三角形葉子更細緻、更具體
+    let leaflets = '';
+    for (let y = 8; y <= 60; y += 6) {
+      const len = 6 + (60 - y) * 0.06;
+      leaflets += `<path d="M20 ${y} Q${20-len} ${y+2} ${20-len*0.6} ${y+5} Q20 ${y+3} 20 ${y} Z" fill="${fill}" opacity=".9"/>`;
+      leaflets += `<path d="M20 ${y} Q${20+len} ${y+2} ${20+len*0.6} ${y+5} Q20 ${y+3} 20 ${y} Z" fill="${fill}" opacity=".9"/>`;
+    }
+    head = `<path d="M20 6 L20 62" stroke="${dark}" stroke-width="1.4" fill="none"/>` + leaflets;
   } else {
-    head = `<path d="M20 4 Q31 16 20 36 Q9 16 20 4 Z" fill="${color}"/>
-      <path d="M11 15 Q2 21 6 32 Q15 28 11 15 Z" fill="${color}" opacity=".85"/>
-      <path d="M29 15 Q38 21 34 32 Q25 28 29 15 Z" fill="${color}" opacity=".85"/>`;
+    head = `<path d="M20 4 Q31 16 20 36 Q9 16 20 4 Z" fill="${fill}"/>
+      <path d="M11 15 Q2 21 6 32 Q15 28 11 15 Z" fill="${fill}" opacity=".85"/>
+      <path d="M29 15 Q38 21 34 32 Q25 28 29 15 Z" fill="${fill}" opacity=".85"/>`;
   }
-  return `<svg viewBox="0 0 40 70" xmlns="http://www.w3.org/2000/svg">${stem}${leafDeco}${head}</svg>`;
+  return `<svg viewBox="0 0 40 70" xmlns="http://www.w3.org/2000/svg">${grad}${stem}${leafDeco}${head}</svg>`;
 }
 function flowerArtHtml(name){
-  const type = detectFlowerType(name);
-  return flowerSvg(type, flowerColorFor(name, type));
+  let type = detectFlowerType(name);
+  // 葉材類再細分成三種常見花材外觀（一般葉/尤加利圓葉/蕨葉），用名稱雜湊固定分配，
+  // 這樣同一個花材每次畫出來的樣子都一致，也不會全部長得一模一樣
+  if (type === 'leaf') {
+    const sub = ['leaf', 'eucalyptus', 'fern'];
+    type = sub[hashStr(name) % sub.length];
+  }
+  return flowerSvg(type, flowerColorFor(name, type === 'eucalyptus' || type === 'fern' ? 'leaf' : type));
 }
 
 function initBouquet(){
@@ -1425,9 +1469,12 @@ function renderBouquetStage(){
   if (!stage) return;
   const shape = currentVaseShape();
   const isGlass = VASE_STYLES.some(v => v.color === BOUQUET_VASE_COLOR && v.glass);
+  const rimW = Math.round(shape.width * (shape.rimPct || 70) / 100);
+  const rimH = Math.max(7, Math.round(shape.height * 0.09));
   const vaseHtml = `<div class="bouquet-vase" style="width:${shape.width}px;height:${shape.height}px;clip-path:${shape.clip};
       background:${BOUQUET_VASE_COLOR};${isGlass ? 'box-shadow:inset -10px 0 22px rgba(0,0,0,.10), inset 14px 0 20px rgba(255,255,255,.55);' : ''}">
       <div class="bouquet-vase-water" style="${isGlass ? 'opacity:1;' : ''}"></div>
+      <div class="bouquet-vase-rim" style="width:${rimW}px;height:${rimH}px;transform:translate(-50%,-40%);"></div>
     </div>`;
 
   if (BOUQUET_ITEMS.length === 0) {
