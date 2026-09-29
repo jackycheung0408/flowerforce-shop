@@ -278,6 +278,7 @@
     filter:drop-shadow(0 3px 4px rgba(0,0,0,.22));}
   .bouquet-flower:active{cursor:grabbing;}
   .bouquet-flower svg{width:100%;height:100%;display:block;overflow:visible;pointer-events:none;}
+  .bouquet-flower img{width:100%;height:100%;display:block;object-fit:contain;object-position:center bottom;pointer-events:none;-webkit-user-drag:none;}
   .bouquet-flower.dragging{filter:drop-shadow(0 8px 10px rgba(0,0,0,.3));}
   .bouquet-flower.selected::after{content:'';position:absolute;left:50%;top:38%;width:150%;height:60%;
     transform:translate(-50%,-50%);border:2px dashed var(--gold);border-radius:50%;pointer-events:none;}
@@ -1143,6 +1144,18 @@ function flowerSvg(type, color, seed){
   }
   return `<svg viewBox="0 0 40 70" xmlns="http://www.w3.org/2000/svg">${grad}${stem}${leafDeco}${head}</svg>`;
 }
+// AI 生成插畫圖檔（image.pollinations.ai 生成 + 去背 + 裁切浮水印），取代原本純程式繪製的向量 SVG，
+// 質感更接近參考網站的手繪插畫等級。每種花材對應一張透明背景 PNG，仍疊在同一段主莖線上呈現。
+const FLOWER_IMAGE_MAP = {
+  rose: 'assets/rose.png',
+  tulip: 'assets/tulip.png',
+  daisy: 'assets/daisy.png',
+  spray: 'assets/spray.png',
+  leaf: 'assets/leaf.png',
+  eucalyptus: 'assets/eucalyptus.png',
+  fern: 'assets/fern.png',
+  generic: 'assets/generic.png',
+};
 function flowerArtHtml(name){
   let type = detectFlowerType(name);
   // 葉材類再細分成三種常見花材外觀（一般葉/尤加利圓葉/蕨葉），用名稱雜湊固定分配，
@@ -1151,7 +1164,8 @@ function flowerArtHtml(name){
     const sub = ['leaf', 'eucalyptus', 'fern'];
     type = sub[hashStr(name) % sub.length];
   }
-  return flowerSvg(type, flowerColorFor(name, type === 'eucalyptus' || type === 'fern' ? 'leaf' : type));
+  const src = FLOWER_IMAGE_MAP[type] || FLOWER_IMAGE_MAP.generic;
+  return `<img src="${src}" alt="" draggable="false">`;
 }
 
 function initBouquet(){
