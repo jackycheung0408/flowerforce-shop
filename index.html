@@ -263,6 +263,10 @@
      視覺落差最大的一個細節，加了這個之後容器一眼看起來就有「開口」的深度感 */
   .bouquet-vase-rim{position:absolute;left:50%;top:0;border-radius:50%;pointer-events:none;
     background:radial-gradient(ellipse at center, rgba(0,0,0,.42) 0%, rgba(0,0,0,.16) 55%, transparent 82%);}
+  /* 花束（紙包/裸束）綁繩結：一小段深色橫帶，疊在收口最窄處，看起來像真的被繩子束起來 */
+  .bouquet-vase-tie{position:absolute;left:50%;border-radius:3px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(0,0,0,.1) 40%, rgba(0,0,0,.38));
+    box-shadow:0 1px 2px rgba(0,0,0,.3);}
   .bouquet-vase-water{position:absolute;left:14%;right:14%;bottom:5%;height:30%;border-radius:0 0 10px 10px;
     background:linear-gradient(180deg, rgba(150,190,200,.35), rgba(120,165,180,.45));opacity:0;}
 
@@ -1084,11 +1088,16 @@ function flowerSvg(type, color, seed){
   const leafDeco = `<path d="M20 52 Q9 49 7 58 Q17 59 20 52 Z" fill="#5B7A52"/>`;
   let head = '';
   if (type === 'rose') {
-    head = `<circle cx="20" cy="21" r="13" fill="${fill}"/>
-      <circle cx="20" cy="21" r="9" fill="${dark}" opacity=".55"/>
-      <circle cx="20" cy="21" r="5" fill="${light}" opacity=".8"/>`;
+    // 玫瑰改成一片一片花瓣疊出來的玫瑰花型（外圈六片大花瓣＋內圈六片小花瓣錯開＋花心），
+    // 而不是同心圓，看起來才有真的花瓣層次，不是一坨圓形色塊
+    const petal = `<path d="M20 21 C13 15,12 6,20 2 C28 6,27 15,20 21 Z"/>`;
+    let outer = '', inner = '';
+    [0,60,120,180,240,300].forEach(a => { outer += `<g transform="rotate(${a} 20 21)" fill="${fill}" opacity=".92">${petal}</g>`; });
+    [30,90,150,210,270,330].forEach(a => { inner += `<g transform="rotate(${a} 20 21) translate(0,4) scale(.62)" fill="${dark}" opacity=".7">${petal}</g>`; });
+    head = outer + inner + `<circle cx="20" cy="20" r="2.6" fill="${light}" opacity=".9"/>`;
   } else if (type === 'tulip') {
-    head = `<path d="M20 6 C9 6 7 22 14 31 C16 24 24 24 26 31 C33 22 31 6 20 6 Z" fill="${fill}" stroke="${dark}" stroke-width=".6"/>`;
+    head = `<path d="M20 6 C9 6 7 22 14 31 C16 24 24 24 26 31 C33 22 31 6 20 6 Z" fill="${fill}" stroke="${dark}" stroke-width=".6"/>
+      <path d="M20 8 C15 11 14 20 17 27" fill="none" stroke="${light}" stroke-width="1.1" opacity=".55" stroke-linecap="round"/>`;
   } else if (type === 'daisy') {
     let petals = '';
     for (let i = 0; i < 8; i++) {
@@ -1469,12 +1478,29 @@ function renderBouquetStage(){
   if (!stage) return;
   const shape = currentVaseShape();
   const isGlass = VASE_STYLES.some(v => v.color === BOUQUET_VASE_COLOR && v.glass);
+  const isWrap = shape.cat === 'bouquet';
   const rimW = Math.round(shape.width * (shape.rimPct || 70) / 100);
   const rimH = Math.max(7, Math.round(shape.height * 0.09));
+  // 容器底色不再是單一平塗色：陶瓷/塑膠類容器疊一層放射狀漸層做出弧面反光的立體感；
+  // 花束（紙包/裸束）額外疊一層很淡的斜紋紋理模擬包裝紙的摺痕，並在收口處加一段綁繩色帶。
+  const bgLayers = [];
+  if (isWrap) {
+    bgLayers.push('repeating-linear-gradient(75deg, rgba(255,255,255,.14) 0px 3px, rgba(0,0,0,.05) 3px 9px, transparent 9px 16px)');
+  }
+  if (!isGlass && /^#/.test(BOUQUET_VASE_COLOR)) {
+    const light = shadeHex(BOUQUET_VASE_COLOR, 32), dark = shadeHex(BOUQUET_VASE_COLOR, -26);
+    bgLayers.push(`radial-gradient(circle at 30% 16%, ${light} 0%, ${BOUQUET_VASE_COLOR} 48%, ${dark} 100%)`);
+  } else {
+    bgLayers.push(BOUQUET_VASE_COLOR);
+  }
+  const tieHtml = isWrap
+    ? `<div class="bouquet-vase-tie" style="width:${Math.round(shape.width*0.24)}px;height:${Math.max(5,Math.round(shape.height*0.045))}px;top:72%;transform:translate(-50%,-50%);"></div>`
+    : '';
   const vaseHtml = `<div class="bouquet-vase" style="width:${shape.width}px;height:${shape.height}px;clip-path:${shape.clip};
-      background:${BOUQUET_VASE_COLOR};${isGlass ? 'box-shadow:inset -10px 0 22px rgba(0,0,0,.10), inset 14px 0 20px rgba(255,255,255,.55);' : ''}">
+      background:${bgLayers.join(',')};${isGlass ? 'box-shadow:inset -10px 0 22px rgba(0,0,0,.10), inset 14px 0 20px rgba(255,255,255,.55);' : ''}">
       <div class="bouquet-vase-water" style="${isGlass ? 'opacity:1;' : ''}"></div>
       <div class="bouquet-vase-rim" style="width:${rimW}px;height:${rimH}px;transform:translate(-50%,-40%);"></div>
+      ${tieHtml}
     </div>`;
 
   if (BOUQUET_ITEMS.length === 0) {
