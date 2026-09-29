@@ -1099,17 +1099,22 @@ function flowerSvg(type, color, seed){
     head = `<path d="M20 6 C9 6 7 22 14 31 C16 24 24 24 26 31 C33 22 31 6 20 6 Z" fill="${fill}" stroke="${dark}" stroke-width=".6"/>
       <path d="M20 8 C15 11 14 20 17 27" fill="none" stroke="${light}" stroke-width="1.1" opacity=".55" stroke-linecap="round"/>`;
   } else if (type === 'daisy') {
+    // 每片花瓣尖端比根部窄一點（淚滴形而非橢圓），加根部到尖端的漸層讓花瓣有立體感，
+    // 花心用放射狀漸層做出顆粒蕊心的凹凸感，而不是一片平塗黃色圓
     let petals = '';
-    for (let i = 0; i < 8; i++) {
-      const a = i * 45;
-      petals += `<ellipse cx="20" cy="12" rx="4.4" ry="8" fill="${fill}" stroke="${dark}" stroke-width=".4" transform="rotate(${a} 20 21)"/>`;
+    for (let i = 0; i < 10; i++) {
+      const a = i * 36;
+      petals += `<path d="M20 21 C17 15,17 7,20 4 C23 7,23 15,20 21 Z" fill="${fill}" stroke="${dark}" stroke-width=".35" transform="rotate(${a} 20 21)"/>`;
     }
-    head = petals + `<circle cx="20" cy="21" r="5.2" fill="#E8B74E"/>`;
+    head = petals + `<circle cx="20" cy="21" r="5.4" fill="#D99A2B"/><circle cx="20" cy="21" r="5.4" fill="url(#${gid})" opacity=".35"/>
+      <circle cx="18.5" cy="19.5" r="1.6" fill="#F3D68A" opacity=".85"/>`;
   } else if (type === 'spray') {
+    // 滿天星：大小不一的小花苞沿分岔的細莖散開，每顆球用小小的高光點做出圓潤感
+    const pos = [[20,9,3.8],[12,15,3.2],[28,15,3.4],[8,24,2.8],[32,24,3.0],[20,20,3.6],[14,32,2.6],[26,32,2.8]];
+    const branches = `<path d="M20 40 L20 20 M20 24 L8 24 M20 24 L32 24 M20 16 L12 15 M20 16 L28 15 M20 32 L14 32 M20 32 L26 32" stroke="#8FAE7E" stroke-width="1" fill="none" opacity=".7"/>`;
     let dots = '';
-    const pos = [[20,10],[12,16],[28,16],[9,26],[31,26],[20,26]];
-    pos.forEach(([cx,cy]) => { dots += `<circle cx="${cx}" cy="${cy}" r="3.6" fill="${fill}" stroke="${dark}" stroke-width=".5"/>`; });
-    head = dots;
+    pos.forEach(([cx,cy,r]) => { dots += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${dark}" stroke-width=".4"/><circle cx="${cx-r*0.3}" cy="${cy-r*0.3}" r="${r*0.3}" fill="#fff" opacity=".6"/>`; });
+    head = branches + dots;
   } else if (type === 'eucalyptus') {
     // 尤加利：一對對圓形葉片沿著莖交錯排列（仿真實尤加利葉材，跟一般三角形葉子明顯不同）
     const pairs = [[16],[26],[36],[46],[56]];
@@ -1129,9 +1134,12 @@ function flowerSvg(type, color, seed){
     }
     head = `<path d="M20 6 L20 62" stroke="${dark}" stroke-width="1.4" fill="none"/>` + leaflets;
   } else {
-    head = `<path d="M20 4 Q31 16 20 36 Q9 16 20 4 Z" fill="${fill}"/>
-      <path d="M11 15 Q2 21 6 32 Q15 28 11 15 Z" fill="${fill}" opacity=".85"/>
-      <path d="M29 15 Q38 21 34 32 Q25 28 29 15 Z" fill="${fill}" opacity=".85"/>`;
+    // 一般葉材：主葉片加中央葉脈＋兩側側脈細線，兩片小側葉加深色描邊，比單純平塗更有葉子質感
+    head = `<path d="M20 4 Q31 16 20 36 Q9 16 20 4 Z" fill="${fill}" stroke="${dark}" stroke-width=".4"/>
+      <path d="M20 6 L20 33" stroke="${dark}" stroke-width=".5" opacity=".5" fill="none"/>
+      <path d="M20 13 L15 17 M20 13 L25 17 M20 21 L16 25 M20 21 L24 25" stroke="${dark}" stroke-width=".35" opacity=".4" fill="none"/>
+      <path d="M11 15 Q2 21 6 32 Q15 28 11 15 Z" fill="${fill}" stroke="${dark}" stroke-width=".35" opacity=".85"/>
+      <path d="M29 15 Q38 21 34 32 Q25 28 29 15 Z" fill="${fill}" stroke="${dark}" stroke-width=".35" opacity=".85"/>`;
   }
   return `<svg viewBox="0 0 40 70" xmlns="http://www.w3.org/2000/svg">${grad}${stem}${leafDeco}${head}</svg>`;
 }
